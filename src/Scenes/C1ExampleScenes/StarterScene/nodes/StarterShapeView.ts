@@ -1,6 +1,7 @@
 import {AGLNodeView, ALabel, APolygonGraphic2D} from "../../../../anigraph";
 import {StarterShapeModel} from "./StarterShapeModel";
 
+
 /**
  * # An example custom view
  *
@@ -49,5 +50,6 @@ export class StarterShapeView extends AGLNodeView{
      */
     update(...args: any[]): void {
         this.setTransform(this.model.transform);
+
     }
 }
