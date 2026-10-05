@@ -8,9 +8,9 @@ The scene to copy when you start your own. It is as small as it can be while sti
 1. Copy this folder and rename it, along with the classes in it (`StarterSceneModel` → `MySceneModel`, and so on).
 2. Replace `StarterShapeModel`/`StarterShapeView` with your own node models and views. Give every model class `@ASerializable("SomeUniqueName")` and every view class `@ALabel("SomeName")`.
 3. For each node model class: add its controls in a `static SetAppState`, its files in a `static async PreloadAssets`, and call both from the scene model. Register its view in the controller's `initModelViewSpecs`.
-4. In `src/MainApp.tsx`, make your scene the active `import AppClasses from "./Scenes/..."` line.
+4. In `../../MainApp.tsx`, make your scene the active `import AppClasses from "./Scenes/..."` line.
 
-See the [Creating a Scene](https://www.cs.cornell.edu/courses/cs4620/2026fa/assignments/docs/assignments/c1/creating-a-scene/) page of the C1 docs for the full walkthrough of this scene, and [`../../AniGraphSceneGuides.md`](../../AniGraphSceneGuides.md) for where each kind of code belongs.
+See the [Creating a Scene](https://www.cs.cornell.edu/courses/cs4620/2026fa/assignments/docs/assignments/c1/creating-a-scene/) page of the C1 docs for the full walkthrough of this scene, and [`../AniGraphSceneGuides.md`](../AniGraphSceneGuides.md) for where each kind of code belongs.
 
 ## How the scene is organized
 ```
@@ -25,7 +25,7 @@ StarterShapeModel        ← the behavior: spins, moves, recolors; owns its cont
 ```
 
 ## Contents:
-- [./nodes](./nodes/README.md): The example node model and its custom view.
+- [./nodes](nodes/README.md): The example node model and its custom view.
 - [./StarterSceneModel.ts](./StarterSceneModel.ts): Thin scene model. Adds the shape's controls, loads its assets, creates it, and forwards time, keys and clicks to it.
 - [./StarterSceneController.ts](./StarterSceneController.ts): Thin scene controller. Sets the background, registers the view spec, forwards keyboard and click input (in world coordinates), and runs the frame loop.
-- [./index.ts](./index.ts): Exports the scene model and controller for `MainApp.tsx`.
+- [./index.ts](index.ts): Exports the scene model and controller for `MainApp.tsx`.

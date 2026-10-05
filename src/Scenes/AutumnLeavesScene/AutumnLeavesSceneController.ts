@@ -1,7 +1,7 @@
-import {ASceneController2D} from "../../../anigraph/starter/Scene2D/ASceneController2D";
-import {ADragInteraction, AInteractionEvent, AKeyboardInteraction, Color} from "../../../anigraph";
-import {StarterSceneModel} from "./StarterSceneModel";
-import {StarterShapeModel, StarterShapeView} from "./nodes";
+import {ASceneController2D} from "../../anigraph/starter/Scene2D/ASceneController2D";
+import {ADragInteraction, AInteractionEvent, AKeyboardInteraction, Color} from "../../anigraph";
+import {AutumnLeavesSceneModel} from "./AutumnLeavesSceneModel";
+import {BranchSegmentModel, BranchSegmentView} from "./nodes";
 
 /**
  * The scene controller. It does two things:
@@ -14,8 +14,8 @@ import {StarterShapeModel, StarterShapeView} from "./nodes";
  */
 export class AutumnLeavesSceneController extends ASceneController2D{
     /** The scene model, typed as this scene's class. */
-    get model(): StarterSceneModel{
-        return this._model as StarterSceneModel;
+    get model(): AutumnLeavesSceneModel{
+        return this._model as AutumnLeavesSceneModel;
     }
 
     /**
@@ -36,7 +36,7 @@ export class AutumnLeavesSceneController extends ASceneController2D{
      */
     initModelViewSpecs(){
         super.initModelViewSpecs();   // keeps specs a parent class adds; camera and group-node specs are built in
-        this.addModelViewSpec(StarterShapeModel, StarterShapeView);
+        this.addModelViewSpec(BranchSegmentModel, BranchSegmentView);
     }
 
     /**

@@ -8,7 +8,7 @@ import {
     Polygon2D,
     V2,
     Vec2
-} from "../../../../anigraph";
+} from "../../../anigraph";
 
 /**
  * # An example node model

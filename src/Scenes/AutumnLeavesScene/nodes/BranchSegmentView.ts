@@ -1,4 +1,4 @@
-import {AGLNodeView, ALabel, APolygonGraphic2D} from "../../../../anigraph";
+import {AGLNodeView, ALabel, APolygonGraphic2D} from "../../../anigraph";
 import {BranchSegmentModel} from "./BranchSegmentModel";
 
 

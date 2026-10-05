@@ -1,6 +1,6 @@
-import {ASceneModel2D} from "../../../anigraph/starter/Scene2D/ASceneModel2D";
-import {AppState, Vec2} from "../../../anigraph";
-import {StarterShapeModel} from "./nodes";
+import {ASceneModel2D} from "../../anigraph/starter/Scene2D/ASceneModel2D";
+import {AppState, Vec2} from "../../anigraph";
+import {BranchSegmentModel} from "./nodes/BranchSegmentModel";
 
 /**
  * The scene model. It creates the scene's nodes, passes time and input on to them, and is the place for logic that
@@ -14,7 +14,7 @@ import {StarterShapeModel} from "./nodes";
  */
 export class AutumnLeavesSceneModel extends ASceneModel2D{
     /** The example shape. Replace it with your own nodes. */
-    shape!: StarterShapeModel;
+    branch!: BranchSegmentModel;
 
     /**
      * 1st: adds the control-panel controls. Runs before assets load and before the panel is first drawn, so every
@@ -23,7 +23,7 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      */
     initAppState(appState: AppState){
         super.initAppState(appState);
-        StarterShapeModel.SetAppState(appState);
+        BranchSegmentModel.SetAppState(appState);
     }
 
     /**
@@ -31,7 +31,7 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      */
     async PreloadAssets(): Promise<void> {
         await super.PreloadAssets();
-        await StarterShapeModel.PreloadAssets();
+        await BranchSegmentModel.PreloadAssets();
     }
 
     /**
@@ -39,8 +39,8 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      * scene model: it throws an error. Under a node, use `parent.addChild(child)`.
      */
     async initScene(){
-        this.shape = new StarterShapeModel();
-        this.addNode(this.shape);
+        this.branch = new BranchSegmentModel();
+        this.addNode(this.branch);
     }
 
     /**
@@ -48,12 +48,12 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      * @param t the current time, in seconds
      */
     timeUpdate(t: number){
-        this.shape.timeUpdate(t);
+        this.branch.timeUpdate(t);
     }
 
     /** Key presses, forwarded from the scene controller. */
     onKeyDown(key: string){
-        this.shape.onKeyDown(key);
+        this.branch.onKeyDown(key);
     }
 
     /** Key releases, forwarded from the scene controller. Nothing uses them yet. */
@@ -65,6 +65,6 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      * @param worldPoint where the click happened, in world coordinates
      */
     onClick(worldPoint: Vec2){
-        this.shape.moveTo(worldPoint);
+        this.branch.moveTo(worldPoint);
     }
 }
