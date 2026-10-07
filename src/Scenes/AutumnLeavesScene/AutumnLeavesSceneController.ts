@@ -1,8 +1,6 @@
 import {ASceneController2D} from "../../anigraph/starter/Scene2D/ASceneController2D";
 import {ADragInteraction, AGroupNodeView, AInteractionEvent, AKeyboardInteraction, Color} from "../../anigraph";
 import {AutumnLeavesSceneModel} from "./AutumnLeavesSceneModel";
-
-import {BranchSegmentModel, BranchSegmentView} from "./nodes";
 import {LabCatModel} from "./nodes/LabCatModel";
 import {LabCatView} from "./nodes/LabCatView";
 import {LeafBlowerModel} from "./nodes/LeafBlowerModel";

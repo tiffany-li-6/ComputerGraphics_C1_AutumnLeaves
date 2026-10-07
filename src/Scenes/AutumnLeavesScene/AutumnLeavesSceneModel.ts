@@ -5,7 +5,6 @@ import {LabCatModel} from "./nodes/LabCatModel";
 import {LeafBlowerModel} from "./nodes/LeafBlowerModel";
 import {TreeModel} from "./nodes/TreeModel";
 import {LeafModel} from "./nodes/LeafModel";
-import { V2 } from "../../anigraph";
 
 /**
  * The scene model. It creates the scene's nodes, passes time and input on to them, and is the place for logic that
@@ -55,9 +54,6 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      */
     async initScene(){
       
-        this.branch = new BranchSegmentModel();
-        this.addNode(this.branch);
-
         this.labCat = new LabCatModel();
         this.labCat.prsa.position = V2(-6,-8);
         this.leafBlower = new LeafBlowerModel();
