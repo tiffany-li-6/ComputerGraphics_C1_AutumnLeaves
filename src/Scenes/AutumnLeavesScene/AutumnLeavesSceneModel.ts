@@ -1,6 +1,8 @@
 import {ASceneModel2D} from "../../anigraph/starter/Scene2D/ASceneModel2D";
-import {AppState, Vec2} from "../../anigraph";
+import {AppState, V2, Vec2} from "../../anigraph";
 import {BranchSegmentModel} from "./nodes/BranchSegmentModel";
+import {LabCatModel} from "./nodes/LabCatModel";
+import {LeafBlowerModel} from "./nodes/LeafBlowerModel";
 import {TreeModel} from "./nodes/TreeModel";
 import {LeafModel} from "./nodes/LeafModel";
 import { V2 } from "../../anigraph";
@@ -18,7 +20,11 @@ import { V2 } from "../../anigraph";
 export class AutumnLeavesSceneModel extends ASceneModel2D{
     /** The example shape. Replace it with your own nodes. */
     branch!: BranchSegmentModel;
+
+    labCat!: LabCatModel;
+    leafBlower!: LeafBlowerModel;
     tree!: TreeModel;
+
 
     /**
      * 1st: adds the control-panel controls. Runs before assets load and before the panel is first drawn, so every
@@ -27,7 +33,9 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      */
     initAppState(appState: AppState){
         super.initAppState(appState);
-        // BranchSegmentModel.SetAppState(appState);
+        BranchSegmentModel.SetAppState(appState);
+        LabCatModel.SetAppState(appState);
+        LeafBlowerModel.SetAppState(appState);
         TreeModel.SetAppState(appState);
         LeafModel.SetAppState(appState);
     }
@@ -37,7 +45,8 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      */
     async PreloadAssets(): Promise<void> {
         await super.PreloadAssets();
-        // await BranchSegmentModel.PreloadAssets();
+        await LabCatModel.PreloadAssets();
+        await LeafBlowerModel.PreloadAssets();
     }
 
     /**
@@ -45,16 +54,21 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      * scene model: it throws an error. Under a node, use `parent.addChild(child)`.
      */
     async initScene(){
-        // Init branch
-        // this.branch = new BranchSegmentModel(7,2,1);
-        // this.branch.prsa.position = V2(0, -this.sceneScale);
-        // this.addNode(this.branch);
+      
+        this.branch = new BranchSegmentModel();
+        this.addNode(this.branch);
+
+        this.labCat = new LabCatModel();
+        this.labCat.prsa.position = V2(-6,-8);
+        this.leafBlower = new LeafBlowerModel();
+        this.leafBlower.prsa.position = V2(0, 0.40); //position in terms of labCat position
+        this.labCat.addChild(this.leafBlower);
+        this.addNode(this.labCat);
 
         // Init tree
         this.tree = new TreeModel();
         this.tree.prsa.position = V2(0, -this.sceneScale);
         this.addNode(this.tree);
-
     }
 
     /**
@@ -62,18 +76,18 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      * @param t the current time, in seconds
      */
     timeUpdate(t: number){
-        // this.branch.timeUpdate(t);
-        // this.tree.timeUpdate(t);
+        this.leafBlower.timeUpdate(t);
     }
 
     /** Key presses, forwarded from the scene controller. */
     onKeyDown(key: string){
-        // this.branch.onKeyDown(key);
-        // this.tree.onKeyDown(key);
+        this.labCat.onKeyDown(key);
+        this.leafBlower.onKeyDown(key);
     }
 
     /** Key releases, forwarded from the scene controller. Nothing uses them yet. */
     onKeyUp(key: string){
+        this.leafBlower.onKeyUp(key);
     }
 
     /**

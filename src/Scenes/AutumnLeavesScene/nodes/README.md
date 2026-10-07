@@ -3,6 +3,13 @@
 The node models and views that make up the autumn tree scene.
 
 ## Contents:
+
+- [./BranchSegmentModel.ts](./StarterShapeModel.ts): A regular polygon that spins at a slider-set speed, recolors from a color control (by subscribing to it), moves to a clicked point, and is nudged by the arrow keys. Shows `ControlKeys`, `static SetAppState`, `static PreloadAssets`, the constructor, `timeUpdate` with `dt`, and input methods.
+- [./BranchSegmentView.ts](./StarterShapeView.ts): A custom `AGLNodeView` that draws the model's vertices with an `APolygonGraphic2D`, rebuilds it when the geometry changes, and applies the model's transform in `update()`.
+- [./LabCatModel.ts](./StarterShapeModel.ts): A labcat png textured square that changed location when nudged by the arrow keys. Shows `ControlKeys`, `static SetAppState`, `static PreloadAssets`, the constructor, and input methods.
+- [./LabCatView.ts](./StarterShapeView.ts): A custom `AGLNodeView` that draws the model's vertices with an `APolygonGraphic2D`, rebuilds it when the geometry changes, and applies the model's transform in `update()`.
+- [./LeafBlowerModel.ts](./StarterShapeModel.ts): A Leaf blower png textured rectangle that is a child of the Labcat model, and its angle is nudged by the keys '1' and '2'. Shows `ControlKeys`, `static SetAppState`, `static PreloadAssets`, the constructor, and input methods.
+- [./LeafBlowerView.ts](./StarterShapeView.ts): A custom `AGLNodeView` that draws the model's vertices with an `APolygonGraphic2D`, rebuilds it when the geometry changes, and applies the model's transform in `update()`.
 - [./BranchSegmentModel.ts](./BranchSegmentModel.ts): One rectangular segment of a branch, with its base at its origin so it rotates around the point where it attaches to its parent. Stores its `length`, `width` and `level` (0 for the trunk).
 - [./BranchSegmentView.ts](./BranchSegmentView.ts): A custom `AGLNodeView` that draws a branch segment's vertices with an `APolygonGraphic2D`, rebuilds it when the geometry changes, and applies the model's transform in `update()`.
 - [./LeafModel.ts](./LeafModel.ts): A leaf whose outline is two mirrored cubic Bezier curves from stem to tip, sampled with `createLeafSpline` into a filled polygon whose vertex colors blend from `baseColor` at the stem to `tipColor` at the tip. Adds a "show control points" checkbox to the control panel.
