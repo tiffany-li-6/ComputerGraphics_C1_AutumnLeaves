@@ -7,26 +7,22 @@ import {LeafModel} from "./LeafModel";
  * # The view for a leaf
  *
  * Draws a `LeafModel` as a filled polygon whose color is blended from its vertex colors. When `ShowPoints` is on,
- * it also draws a small square at each sampled outline point and a larger square at each Bezier control point,
- * so you can check that the curves have the shape you expect. The control-point markers can be shown or hidden
- * with the `LeafModel.ControlKeys.ShowControlPoints` checkbox in the control panel.
+ * it also draws a small blue square at each Bezier control point, so you can check that the curves have the shape
+ * you expect. The markers can be shown or hidden with the `LeafModel.ControlKeys.ShowControlPoints` checkbox in the
+ * control panel.
  */
 @ALabel("LeafView")
 export class LeafView extends AGLNodeView{
-    /** Turn on to draw the sampled points and control points over the leaf (for debugging the curve). */
+    /** Turn on to draw the control points over the leaf (for debugging the curve). */
     static ShowPoints = true;
 
-    /** Size of the marker drawn at each sampled outline point, in world units. */
-    static SampleMarkerSize = 0.05;
     /** Size of the marker drawn at each control point, in world units. */
     static ControlMarkerSize = 0.09;
 
     /** The graphic that draws the filled leaf. */
     element!: APolygonGraphic2D;
 
-    /** Markers at the sampled outline points (only created when `ShowPoints` is on). */
-    sampleMarkers: APolygonGraphic2D[] = [];
-    /** Markers at the Bezier control points (only created when `ShowPoints` is on). Toggled by the checkbox. */
+    /** Markers at the Bezier control points. Toggled by the checkbox. */
     controlMarkers: APolygonGraphic2D[] = [];
 
     /** The model, typed as the class this view draws. */
@@ -42,6 +38,8 @@ export class LeafView extends AGLNodeView{
         this.element = new APolygonGraphic2D();
         this.element.init(this.model.verts, this.model.material);
         this.registerAndAddGraphic(this.element);
+
+        this.addStem()
 
         // Place the markers at the current points, and keep the control points matching the checkbox.
         this.rebuildMarkers();
@@ -59,27 +57,23 @@ export class LeafView extends AGLNodeView{
     }
 
     /**
-     * Removes any existing markers and creates new ones at the model's current sampled points and control points.
-     * Called once from `init` and again after every geometry change, so the markers always match the leaf (even if
-     * the number of sampled points changes). Does nothing beyond clearing the old markers when `ShowPoints` is off.
+     * Removes any existing markers and creates new ones at the model's current control points. Called once from
+     * `init` and again after every geometry change, so the markers always match the leaf. Does nothing beyond
+     * clearing the old markers when `ShowPoints` is off.
      */
     rebuildMarkers(){
         // Dispose of the old markers so they stop drawing and free their resources.
-        for (const marker of this.sampleMarkers.concat(this.controlMarkers)) {
+        for (const marker of this.controlMarkers) {
             this.disposeGraphic(marker);
         }
-        this.sampleMarkers = [];
         this.controlMarkers = [];
 
         if (!LeafView.ShowPoints) {
             return;
         }
 
-        // Sampled outline points: small black squares.
-        for (const p of this.model.outlinePoints) {
-            this.sampleMarkers.push(this.addMarker(p, LeafView.SampleMarkerSize, Color.FromString("#000000")));
-        }
-        // Control points: larger blue squares
+        // Control points: blue squares. The left curve's 4 points, plus the right curve's two middle points (its
+        // first and last points are the stem and tip, which the left curve already has).
         const controlPoints = this.model.leftControlPoints.concat(this.model.rightControlPoints.slice(1, 3));
         for (const p of controlPoints) {
             this.controlMarkers.push(this.addMarker(p, LeafView.ControlMarkerSize, Color.FromString("#2255ff")));
@@ -87,6 +81,19 @@ export class LeafView extends AGLNodeView{
 
         // New markers start visible, so hide the control points if the checkbox is off.
         this.setControlPointsVisible(!!GetAppState().getState(LeafModel.ControlKeys.ShowControlPoints));
+    }
+
+    /**
+     * Draws the leaf's center vein: a thin triangle that is widest at the stem (0, 0) and tapers to a point near
+     * the tip. It is its own graphic (not part of the leaf's outline polygon), added after the fill so it draws on
+     * top of it. Sized from the model, so it fits leaves of any size.
+     */
+    addStem(){
+        const halfWidth = this.model.width * 0.04;     // half the vein's width at the stem
+        const top = this.model.length * 0.7;           // stop a little short of the tip
+        const triangle = Polygon2D.FromLists([V2(-halfWidth, -4*halfWidth), V2(0, top), V2(halfWidth, -4*halfWidth)]);
+        const stem = new APolygonGraphic2D(triangle, Color.FromString("#3b2412"));
+        this.registerAndAddGraphic(stem);
     }
 
     /**

@@ -5,6 +5,7 @@ import {LabCatModel} from "./nodes/LabCatModel";
 import {LeafBlowerModel} from "./nodes/LeafBlowerModel";
 import {TreeModel} from "./nodes/TreeModel";
 import {LeafModel} from "./nodes/LeafModel";
+import {TerrainModel} from "./nodes/TerrainModel";
 
 /**
  * The scene model. It creates the scene's nodes, passes time and input on to them, and is the place for logic that
@@ -23,6 +24,8 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
     labCat!: LabCatModel;
     leafBlower!: LeafBlowerModel;
     tree!: TreeModel;
+    /** The ground along the bottom of the screen. */
+    terrain!: TerrainModel;
 
 
     /**
@@ -32,7 +35,6 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      */
     initAppState(appState: AppState){
         super.initAppState(appState);
-        BranchSegmentModel.SetAppState(appState);
         LabCatModel.SetAppState(appState);
         LeafBlowerModel.SetAppState(appState);
         TreeModel.SetAppState(appState);
@@ -53,18 +55,24 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      * scene model: it throws an error. Under a node, use `parent.addChild(child)`.
      */
     async initScene(){
-      
+        // Init terrain first so it draws behind everything added after it. Its surface (y = 0 in its own
+        // coordinates) sits at the bottom of the screen.
+        this.terrain = new TerrainModel();
+        this.terrain.prsa.position = V2(0, -this.sceneScale);
+        this.addNode(this.terrain);
+
+        // Init tree
+        this.tree = new TreeModel();
+        // Stand the trunk on the ground: the surface height under x = 0, shifted by where the terrain is placed.
+        this.tree.prsa.position = V2(0, -this.sceneScale + this.terrain.heightAt(0) + this.terrain.depth-0.5);
+        this.addNode(this.tree);
+
         this.labCat = new LabCatModel();
         this.labCat.prsa.position = V2(-6,-8);
         this.leafBlower = new LeafBlowerModel();
         this.leafBlower.prsa.position = V2(0, 0.40); //position in terms of labCat position
         this.labCat.addChild(this.leafBlower);
         this.addNode(this.labCat);
-
-        // Init tree
-        this.tree = new TreeModel();
-        this.tree.prsa.position = V2(0, -this.sceneScale);
-        this.addNode(this.tree);
     }
 
     /**
