@@ -2,6 +2,7 @@ import {ASceneModel2D} from "../../anigraph/starter/Scene2D/ASceneModel2D";
 import {AppState, Vec2} from "../../anigraph";
 import {BranchSegmentModel} from "./nodes/BranchSegmentModel";
 import {TreeModel} from "./nodes/TreeModel";
+import {LeafModel} from "./nodes/LeafModel";
 import { V2 } from "../../anigraph";
 
 /**
@@ -28,6 +29,7 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
         super.initAppState(appState);
         // BranchSegmentModel.SetAppState(appState);
         TreeModel.SetAppState(appState);
+        LeafModel.SetAppState(appState);
     }
 
     /**

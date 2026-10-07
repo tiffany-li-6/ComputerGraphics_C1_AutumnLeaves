@@ -9,6 +9,7 @@ import {
     V2,
     Vec2
 } from "../../../anigraph";
+import { LeafModel } from "./LeafModel";
 
 /**
  * # A model for Branch Segments
@@ -35,6 +36,8 @@ export class BranchSegmentModel extends ANodeModel2D{
     length: number;
     width: number;
     level: number;
+    leafList: LeafModel[] = []
+    static MaxLeavesPerBranch: number = 8;
 
     /** The time of the previous frame, used to compute how much time passed between frames. */
     lastTime?: number;
@@ -111,5 +114,46 @@ export class BranchSegmentModel extends ANodeModel2D{
     setAngle(angle: number){
         this.prsa.rotation = angle;
         this.signalTransformUpdate();
+    }
+
+    /**
+     * Clears all leaves from the tree
+     */
+    clearLeaves() {
+        for (const leaf of this.leafList) {
+            leaf.release();
+        }
+        this.leafList = [];
+    }
+
+    /**
+     * Sprouts leaves on branch according to `density` parameter, evenly spaced along the branch
+     * segement
+     */
+    sproutLeaves(density: number) {
+        const numLeaves = Math.floor(BranchSegmentModel.MaxLeavesPerBranch * density);
+        if (this.level in [0,1]){ return; }
+        for (let i = 0; i < numLeaves; i++) {
+            const leaf = new LeafModel(0.6,0.35);
+            this.addChild(leaf);
+            this.leafList.push(leaf);
+            const alpha = (i + 1) / (numLeaves + 1);
+            this.placeLeaf(leaf, alpha, (i%2 == 0) ? -1 : 1);
+        }
+    }
+
+    /**
+     * Calculates the position of leaf relative to branch segement's coordinates given alpha along the
+     * branch segment, rotation according to a FIX HERE fixed angle (but could be random) and then
+     * signals the transofmration update
+     * @param leaf the leaf to be placed
+     * @param alpha from 0 to 1, representing progress along the branch segement
+     * @param side either -1 or 1 depending on left or right
+     * @param tilt 
+     */
+    placeLeaf(leaf:LeafModel, alpha:number, side:number, tilt:number=Math.PI/4) {
+        leaf.prsa.position = V2(side * this.width / 2, alpha * this.length);
+        leaf.prsa.rotation = -side * tilt;
+        leaf.signalTransformUpdate();
     }
 }

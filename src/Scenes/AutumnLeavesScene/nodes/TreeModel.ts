@@ -51,12 +51,13 @@ export class TreeModel extends AGroupNodeModel2D {
     static ControlKeys = {
         /** Angle between neighboring sibling branches, in degrees. */
         BranchAngle: "TreeBranchAngle",
+        TreeLeafDensity: "TreeLeafDensity",
         // Add wind movements???
     }
 
     /** The maximum amount of levels for the tree. */
 
-    static NumLevels = 3;
+    static MaxLevel = 3;
     static LengthDecrScale = 0.70;
     static WidthDecrScale = 0.50;
 
@@ -85,6 +86,8 @@ export class TreeModel extends AGroupNodeModel2D {
         // appState.addSliderIfMissing(TreeModel.ControlKeys.SpinSpeed, 1, -5, 5, 0.01);
         // // A color picker: name, initial value
         // appState.addColorControl(TreeModel.ControlKeys.Color, Color.FromString("#3377ff"));
+        // Density of the leaves on the tree
+        appState.addSliderIfMissing(TreeModel.ControlKeys.TreeLeafDensity, 0.5, 0, 1, 0.25)
     }
 
     /**
@@ -106,6 +109,11 @@ export class TreeModel extends AGroupNodeModel2D {
             this.applyBranchAngle(angleDegrees);
         });
 
+        // Re-grow leaves according to slider's chosen tree leaf density. ON
+        this.subscribeToAppState(TreeModel.ControlKeys.TreeLeafDensity, (leafDensity: number) => {
+            this.regrowLeaves(leafDensity)
+        })
+
         // Debug output, printed once after the whole tree is built.
         console.log(`TreeModel: ${this.branches.length} segments`);
 
@@ -122,7 +130,7 @@ export class TreeModel extends AGroupNodeModel2D {
         parent.addChild(currentSegment)
         this.branches.push(currentSegment)
         
-        if (level == TreeModel.NumLevels) { return currentSegment; }
+        if (level == TreeModel.MaxLevel) { return currentSegment; }
 
         // Read the slider once per segment so newly grown branches start at the current angle.
         const angleDegrees: number = GetAppState().getState(TreeModel.ControlKeys.BranchAngle);
@@ -162,6 +170,17 @@ export class TreeModel extends AGroupNodeModel2D {
                 child.prsa.rotation = TreeModel.SpreadRotation(i, childBranches.length, angleDegrees);
                 child.signalTransformUpdate();
             });
+        }
+    }
+
+    /**
+     * Re-grows leaves on each branch by calling the sprouLeaves function on each branch segment of the tree
+     * @param density density of the tree's leaves ranging from 0 (least dense) to 1 (most dense)
+     */
+    regrowLeaves(density:number) {
+        for (const branch of this.branches) {
+            branch.clearLeaves()
+            branch.sproutLeaves(density)
         }
     }
 }
