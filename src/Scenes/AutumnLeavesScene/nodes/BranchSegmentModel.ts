@@ -9,15 +9,14 @@ import {
     V2,
     Vec2
 } from "../../../anigraph";
+import { LeafModel } from "./LeafModel";
 
 /**
- * # An example node model
+ * # A model for Branch Segments
  *
- * A regular polygon that spins at a speed set in the control panel. Click to move it; the arrow keys nudge it.
+ * A rectangle polygon Branch Segment that makes up the branches of the Tree Model
  *
  * This class shows every part a node model usually has. Replace it with your own:
- * - `ControlKeys` and `SetAppState`: the control-panel controls this node reads.
- * - `PreloadAssets`: the files this node needs (none, here).
  * - the constructor: creates this node's geometry and material (and its children, if it had any).
  * - `timeUpdate`: its per-frame behavior.
  * - `onKeyDown` and `moveTo`: how it responds to input. The controller calls these (through the scene model); the
@@ -32,127 +31,129 @@ import {
  */
 @ASerializable("BranchSegmentModel")
 export class BranchSegmentModel extends ANodeModel2D{
-    /** Names of this node's control-panel entries. Use these with `GetAppState().getState(...)`. */
-    static ControlKeys = {
-        SpinSpeed: "StarterSpinSpeed",
-        Color: "StarterShapeColor",
-    }
 
-    /** How far one arrow-key press moves the shape, in world units. */
-    static NudgeDistance = 0.25;
+    /** Document this. TODO */
+    length: number;
+    width: number;
+    level: number;
+    leafList: LeafModel[] = []
+    static MaxLeavesPerBranch: number = 8;
 
     /** The time of the previous frame, used to compute how much time passed between frames. */
     lastTime?: number;
 
-    /**
-     * Adds this node's controls to the control panel. The scene model calls it from `initAppState`.
-     * It is static because `initAppState` runs before any node exists. Controls belong there, before the control
-     * panel is first drawn: controls added later may not fit in the panel.
-     * @param appState
-     */
+
+    // Controls. Static: the scene model calls it from initAppState, before any node exists.
     static SetAppState(appState: AppState){
-        // A slider: name, initial value, min, max, step size
-        appState.addSliderIfMissing(BranchSegmentModel.ControlKeys.SpinSpeed, 1, -5, 5, 0.01);
-        // A color picker: name, initial value
-        appState.addColorControl(BranchSegmentModel.ControlKeys.Color, Color.FromString("#3377ff"));
     }
 
-    /**
-     * Loads the files this node needs, before the scene is built. The scene model calls it from its own
-     * `PreloadAssets`. This shape needs none; a textured node would load its image here, e.g.
-     * `await AssetManager.loadTexture("./images/LabCatSitsSquareSmall.jpg", "LabCat");`
-     */
-    static async PreloadAssets(){
-    }
 
     /**
-     * Builds a regular polygon with `nSides` sides. The vertices go around **clockwise**: polygons drawn by
-     * `APolygonGraphic2D` must list their vertices clockwise, or per-vertex colors come out scrambled.
-     * @param nSides
-     * @param radius distance from the center to each corner
+     * Builds a rectangle with `length` and `width` specifications. The vertices go around **clockwise**.
+     * This is the representation for a singular segmeent of a branch for the whole tree
+     * @param length
+     * @param width 
      * @param color the color of every vertex
      */
-    static RegularPolygon(nSides: number, radius: number, color: Color): Polygon2D{
-        // CreateForRendering(true) gives the polygon a color attribute, so each vertex can have its own color.
-        let polygon = Polygon2D.CreateForRendering(true);
-        for(let i=0;i<nSides;i++){
-            // A negative angle step goes clockwise.
-            let theta = -i*2*Math.PI/nSides;
-            polygon.addVertex(V2(Math.cos(theta), Math.sin(theta)).times(radius), color);
-        }
-        return polygon;
+    static RectangleGeometry(length: number, width: number, color: Color): Polygon2D {
+        const polygon = Polygon2D.CreateForRendering(true);
+        polygon.addVertex(V2(-width/2, 0), color);
+        polygon.addVertex(V2(-width/2, length), color);
+        polygon.addVertex(V2(width/2, length), color);
+        polygon.addVertex(V2(width/2, 0), color);
+        return polygon
+    }
+
+    /** This segment's root (where it attaches to its parent), in its own coordinates. */
+    static Root(): Vec2{
+        return V2(0, 0);
+    }
+
+    /** This segment's tip (where its child attaches to), in its own coordinates. */
+    static Tip(): Vec2{
+        return V2(0, BranchSegmentModel.length);
     }
 
     /**
-     * Creates the shape's geometry and material. Call `PreloadAssets()` before constructing one.
+     * Creates the shape's geometry and material. 
      * Model classes must be constructible with no arguments, so every argument has a default.
-     * @param nSides number of sides
-     * @param radius size, in world units
+     * @param length length of branch segment
+     * @param width width of branch segment
+     * @param level how many above below the trunk this branch is. Currently level does not have any effect on branch segment construction
+     * @param color color of the branch
      */
-    constructor(nSides: number = 6, radius: number = 1.5){
+    constructor(length: number, width: number, level: number = 0, color: Color = Color.FromString("#6b4423")){
         super();
-        const color: Color = GetAppState().getState(BranchSegmentModel.ControlKeys.Color);
-        this.setVerts(BranchSegmentModel.RegularPolygon(nSides, radius, color));
+        this.length = length
+        this.width = width
+        this.level = level
+        this.setVerts(BranchSegmentModel.RectangleGeometry(length, width, color));
 
         // The RGBA material colors each pixel by interpolating the colors of the vertices around it.
         this.setMaterial(AssetManager.Create2DRGBAMaterial());
-
-        // Recolor the shape whenever the color control changes. This is the "subscribe" way to use a control; see
-        // timeUpdate for the "read it every frame" way. Subscribing is better for changes that are expensive to
-        // apply, like rebuilding geometry.
-        this.subscribeToAppState(BranchSegmentModel.ControlKeys.Color, (newColor: Color)=>{
-            this.verts.FillColor(newColor);
-            // Changing geometry doesn't notify the view on its own, so signal the change.
-            this.signalGeometryUpdate();
-        });
     }
 
-    /**
-     * The per-frame update: spin at the speed set in the control panel.
-     * @param t the current time, in seconds
-     */
-    timeUpdate(t: number, ...args: any[]){
-        super.timeUpdate(t, ...args);
-
-        // How much time passed since the last frame (0 on the first frame).
-        const dt = (this.lastTime === undefined) ? 0 : t - this.lastTime;
-        this.lastTime = t;
-
-        // Read the control where it is used.
-        const spinSpeed: number = GetAppState().getState(BranchSegmentModel.ControlKeys.SpinSpeed);
-
-        // `prsa` is this node's live transform, as position, rotation, scale and anchor: editing it moves the node.
-        this.prsa.rotation += spinSpeed*dt;
-        // Changing the transform already redraws the view, so this call is harmless. It is needed only if this node's
-        // autoTransformUpdate is off (for batching many transform changes into one redraw).
-        this.signalTransformUpdate();
-    }
-
-    /**
-     * Keyboard input, forwarded from the scene controller. The arrow keys nudge the shape.
-     * @param key the `key` value of the keyboard event, for example "ArrowLeft"
-     */
-    onKeyDown(key: string){
-        const step = BranchSegmentModel.NudgeDistance;
-        let offset: Vec2|undefined;
-        switch(key){
-            case "ArrowLeft": offset = V2(-step, 0); break;
-            case "ArrowRight": offset = V2(step, 0); break;
-            case "ArrowUp": offset = V2(0, step); break;
-            case "ArrowDown": offset = V2(0, -step); break;
-        }
-        if(offset){
-            this.moveTo(this.prsa.position.plus(offset));
-        }
-    }
-
-    /**
-     * Moves the shape's center to `position`.
-     * @param position in the parent's coordinates (world coordinates for a top-level node)
-     */
     moveTo(position: Vec2){
-        // clone() so this node doesn't share the Vec2 object with the caller: assigning a Vec2 copies a reference.
         this.prsa.position = position.clone();
         this.signalTransformUpdate();
+    }
+
+    /**
+     * Puts this segment's joint at `position`, given in the parent's coordinates.
+     * @param position
+     */
+    attachAt(position: Vec2){
+        this.prsa.position = position.clone();
+        this.signalTransformUpdate();
+    }
+
+    /**
+     * Sets the angle of this segement relative to its parent.
+     * @param angle in radians; 0 points the same way as the parent
+     */
+    setAngle(angle: number){
+        this.prsa.rotation = angle;
+        this.signalTransformUpdate();
+    }
+
+    /**
+     * Clears all leaves from the tree
+     */
+    clearLeaves() {
+        for (const leaf of this.leafList) {
+            leaf.release();
+        }
+        this.leafList = [];
+    }
+
+    /**
+     * Sprouts leaves on branch according to `density` parameter, evenly spaced along the branch
+     * segement
+     */
+    sproutLeaves(density: number) {
+        const numLeaves = Math.floor(BranchSegmentModel.MaxLeavesPerBranch * density);
+        if (this.level in [0,1]){ return; }
+        for (let i = 0; i < numLeaves; i++) {
+            const leaf = new LeafModel(0.6,0.35);
+            this.addChild(leaf);
+            this.leafList.push(leaf);
+            const alpha = (i + 1) / (numLeaves + 1);
+            this.placeLeaf(leaf, alpha, (i%2 == 0) ? -1 : 1);
+        }
+    }
+
+    /**
+     * Calculates the position of leaf relative to branch segement's coordinates given alpha along the
+     * branch segment, rotation according to a FIX HERE fixed angle (but could be random) and then
+     * signals the transofmration update
+     * @param leaf the leaf to be placed
+     * @param alpha from 0 to 1, representing progress along the branch segement
+     * @param side either -1 or 1 depending on left or right
+     * @param tilt 
+     */
+    placeLeaf(leaf:LeafModel, alpha:number, side:number, tilt:number=Math.PI/4) {
+        leaf.prsa.position = V2(side * this.width / 2, alpha * this.length);
+        leaf.prsa.rotation = -side * tilt;
+        leaf.signalTransformUpdate();
     }
 }
