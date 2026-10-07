@@ -10,7 +10,7 @@ import {loadExampleAssetDetails} from "./anigraph/starter/ExampleAssets";
  * Choose which scene runs by leaving exactly one of these `import AppClasses` lines uncommented.
  * See the "Example Scenes" page of the C1 docs for what each scene shows.
  */
-//import AppClasses from "./Scenes/C1ExampleScenes/StarterScene";
+// import AppClasses from "./Scenes/C1ExampleScenes/StarterScene";
 import AppClasses from "./Scenes/AutumnLeavesScene";
 // import AppClasses from "./Scenes/C1ExampleScenes/ShapesAndMaterials";
 // import AppClasses from "./Scenes/C1ExampleScenes/HierarchyAndAnimation";
