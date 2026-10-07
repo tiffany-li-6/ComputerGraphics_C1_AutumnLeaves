@@ -18,6 +18,7 @@ import AppClasses from "./Scenes/AutumnLeavesScene";
 // import AppClasses from "./Scenes/C1ExampleScenes/CopiesView";
 // import AppClasses from "./Scenes/C1ExampleScenes/MouseInput";
 // import AppClasses from "./Scenes/C1ExampleScenes/AttachAndDetach";
+// import AppClasses from "./Scenes/C1ExampleScenes/TutorialSceneComplete";
 
 export const MainAppConfigs = {
     USE_STRICT_MODE: false

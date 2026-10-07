@@ -1,6 +1,6 @@
 import {ASerializable, AssetManager, Color, SeededRandom, V2, Vec2} from "../../../../anigraph";
 import {PolygonModel2D} from "../../../../anigraph/starter/nodes/polygon2D";
-import {makeNoise2D} from "fast-simplex-noise";
+import {makeNoise2D} from "fast-simplex-noise";`git`
 import {TutFactories} from "./TutFactories";
 
 /**

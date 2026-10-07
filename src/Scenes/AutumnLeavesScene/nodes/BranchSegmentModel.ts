@@ -42,12 +42,6 @@ export class BranchSegmentModel extends ANodeModel2D{
     /** The time of the previous frame, used to compute how much time passed between frames. */
     lastTime?: number;
 
-
-    // Controls. Static: the scene model calls it from initAppState, before any node exists.
-    static SetAppState(appState: AppState){
-    }
-
-
     /**
      * Builds a rectangle with `length` and `width` specifications. The vertices go around **clockwise**.
      * This is the representation for a singular segmeent of a branch for the whole tree
@@ -137,9 +131,16 @@ export class BranchSegmentModel extends ANodeModel2D{
             const leaf = new LeafModel(0.6,0.35);
             this.addChild(leaf);
             this.leafList.push(leaf);
-            const alpha = (i + 1) / (numLeaves + 1);
+            const alpha = 1- Math.random();
             this.placeLeaf(leaf, alpha, (i%2 == 0) ? -1 : 1);
         }
+        if (density != 0) {
+            const leaf = new LeafModel(0.6,0.35);
+            this.addChild(leaf)
+            this.leafList.push(leaf)
+            this.placeLeaf(leaf, 1, 0)
+        }
+        
     }
 
     /**
