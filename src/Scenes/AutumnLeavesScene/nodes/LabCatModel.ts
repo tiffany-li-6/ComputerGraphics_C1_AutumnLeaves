@@ -69,8 +69,7 @@ export class LabCatModel extends ANodeModel2D{
     /**
      * Creates the shape's geometry and material. Call `PreloadAssets()` before constructing one.
      * Model classes must be constructible with no arguments, so every argument has a default.
-     * @param nSides number of sides
-     * @param radius size, in world units
+     * @param size square side length in world units
      */
     constructor(size: number = 4.0){
         super();

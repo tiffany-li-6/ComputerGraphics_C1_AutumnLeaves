@@ -5,6 +5,7 @@ import {LabCatModel} from "./nodes/LabCatModel";
 import {LeafBlowerModel} from "./nodes/LeafBlowerModel";
 import {TreeModel} from "./nodes/TreeModel";
 import {LeafModel} from "./nodes/LeafModel";
+import {WindModel} from "./nodes";
 
 /**
  * The scene model. It creates the scene's nodes, passes time and input on to them, and is the place for logic that
@@ -23,6 +24,7 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
     labCat!: LabCatModel;
     leafBlower!: LeafBlowerModel;
     tree!: TreeModel;
+    wind!: WindModel;
 
 
     /**
@@ -37,6 +39,7 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
         LeafBlowerModel.SetAppState(appState);
         TreeModel.SetAppState(appState);
         LeafModel.SetAppState(appState);
+        WindModel.SetAppState(appState);
     }
 
     /**
@@ -53,18 +56,23 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      * scene model: it throws an error. Under a node, use `parent.addChild(child)`.
      */
     async initScene(){
-      
-        this.labCat = new LabCatModel();
-        this.labCat.prsa.position = V2(-6,-8);
-        this.leafBlower = new LeafBlowerModel();
-        this.leafBlower.prsa.position = V2(0, 0.40); //position in terms of labCat position
-        this.labCat.addChild(this.leafBlower);
-        this.addNode(this.labCat);
+
 
         // Init tree
         this.tree = new TreeModel();
         this.tree.prsa.position = V2(0, -this.sceneScale);
         this.addNode(this.tree);
+
+        this.labCat = new LabCatModel();
+        this.labCat.prsa.position = V2(-6,-8);
+        this.leafBlower = new LeafBlowerModel();
+        this.leafBlower.prsa.position = V2(0, 0.40); //position in terms of labCat position
+        this.wind = new WindModel(); //wind is child of leafBlower
+        this.wind.prsa.position = V2(0, 0.5);
+        this.leafBlower.addChild(this.wind);
+        this.labCat.addChild(this.leafBlower);
+        this.addNode(this.labCat);
+
     }
 
     /**
@@ -79,11 +87,13 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
     onKeyDown(key: string){
         this.labCat.onKeyDown(key);
         this.leafBlower.onKeyDown(key);
+        this.wind.onKeyDown(key);
     }
 
     /** Key releases, forwarded from the scene controller. Nothing uses them yet. */
     onKeyUp(key: string){
         this.leafBlower.onKeyUp(key);
+        this.wind.onKeyUp(key);
     }
 
     /**

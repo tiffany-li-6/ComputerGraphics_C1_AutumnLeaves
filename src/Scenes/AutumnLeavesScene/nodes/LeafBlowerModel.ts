@@ -34,13 +34,13 @@ import {
 export class LeafBlowerModel extends ANodeModel2D{
     /** Names of this node's control-panel entries. Use these with `GetAppState().getState(...)`. */
     static ControlKeys = {
-        LeafBlowerForce: "LeafBlowerForce",
+
     }
 
-    /** Angle rotated for a tap of the keys 1 or 2  */
+    /** Angle rotated for a tap of the keys A or D  */
     static RotateStep = 0.25;
 
-    /** Speed of angle rotation when holding down 1 or 2 */
+    /** Speed of angle rotation when holding down A or D */
     static RotateSpeed = 2;
 
 
@@ -58,7 +58,6 @@ export class LeafBlowerModel extends ANodeModel2D{
      */
     static SetAppState(appState: AppState){
         // A slider: name, initial value, min, max, step size
-        appState.addSliderIfMissing(LeafBlowerModel.ControlKeys.LeafBlowerForce, 1, 0, 5, 0.1);
     }
 
     /**
@@ -99,13 +98,13 @@ export class LeafBlowerModel extends ANodeModel2D{
         const dt = (this.lastTime === undefined) ? 0 : t - this.lastTime;
         this.lastTime = t;
 
-        //if holding down '1' = rotating left
+        //if holding down 'A' = rotating left
         if (this.isRotatingLeft){
             this.prsa.rotation += LeafBlowerModel.RotateSpeed * dt;
             this.signalTransformUpdate();
 
         }
-        //hold down '2' = rotating right
+        //hold down 'D' = rotating right
         if (this.isRotatingRight){
             this.prsa.rotation -= LeafBlowerModel.RotateSpeed * dt;
             this.signalTransformUpdate();
@@ -113,18 +112,18 @@ export class LeafBlowerModel extends ANodeModel2D{
     }
 
     /**
-     * Keyboard input, forwarded from the scene controller. The '1' rotates left, and '2' rotates right.
-     * If '1' or '2' is held down, then it keeps rotating that direction
+     * Keyboard input, forwarded from the scene controller. The 'A' rotates left, and 'D' rotates right.
+     * If 'A' or 'D' is held down, then it keeps rotating that direction
      * @param key the `key` value of the keyboard event, for example "ArrowLeft"
      */
     onKeyDown(key: string){
         const angleStep = LeafBlowerModel.RotateStep;
-        if (key === "1"){
+        if (key === "A" || key === "a"){
             this.prsa.rotation += angleStep;
             this.isRotatingLeft = true; //in case key is held down, key up logic is in onKeyUp
             this.signalTransformUpdate();
         }
-        if (key === "2"){
+        if (key === "D" || key === "d"){
             this.prsa.rotation -= angleStep;
             this.isRotatingRight = true; //in case key is held down, key up logic is in onKeyUp
             this.signalTransformUpdate();
@@ -132,16 +131,15 @@ export class LeafBlowerModel extends ANodeModel2D{
     }
 
     /**
-     * Keyboard input, forwarded from the scene controller. The '1' rotates left, and '2' rotates right.
-     * If '1' or '2' is held down, then it keeps rotating that direction
+     * Keyboard input, forwarded from the scene controller. The 'A' rotates left, and 'D' rotates right.
+     * If 'A' or 'D' is held down, then it keeps rotating that direction
      * @param key the `key` value of the keyboard event, for example "ArrowLeft"
      */
     onKeyUp(key: string){
-        const angleStep = LeafBlowerModel.RotateStep;
-        if (key === "1"){
+        if (key === "A" || key === "a"){
             this.isRotatingLeft = false;
         }
-        if (key === "2"){
+        if (key === "D" || key === "d"){
             this.isRotatingRight = false;
         }
     }
