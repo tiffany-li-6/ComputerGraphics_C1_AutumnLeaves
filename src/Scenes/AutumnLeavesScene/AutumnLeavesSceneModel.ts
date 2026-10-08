@@ -5,6 +5,7 @@ import {LabCatModel} from "./nodes/LabCatModel";
 import {LeafBlowerModel} from "./nodes/LeafBlowerModel";
 import {TreeModel} from "./nodes/TreeModel";
 import {LeafModel} from "./nodes/LeafModel";
+import {WindModel} from "./nodes";
 import {TerrainModel} from "./nodes/TerrainModel";
 
 /**
@@ -24,7 +25,8 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
     labCat!: LabCatModel;
     leafBlower!: LeafBlowerModel;
     tree!: TreeModel;
-    /** The ground along the bottom of the screen. */
+    wind!: WindModel;
+    fallingLeaves: LeafModel[] = [];
     terrain!: TerrainModel;
 
 
@@ -39,6 +41,7 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
         LeafBlowerModel.SetAppState(appState);
         TreeModel.SetAppState(appState);
         LeafModel.SetAppState(appState);
+        WindModel.SetAppState(appState);
     }
 
     /**
@@ -55,22 +58,24 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      * scene model: it throws an error. Under a node, use `parent.addChild(child)`.
      */
     async initScene(){
-        // Init terrain first so it draws behind everything added after it. Its surface (y = 0 in its own
-        // coordinates) sits at the bottom of the screen.
+        // Init terrain
         this.terrain = new TerrainModel();
         this.terrain.prsa.position = V2(0, -this.sceneScale);
         this.addNode(this.terrain);
 
         // Init tree
         this.tree = new TreeModel();
-        // Stand the trunk on the ground: the surface height under x = 0, shifted by where the terrain is placed.
         this.tree.prsa.position = V2(0, -this.sceneScale + this.terrain.heightAt(0) + this.terrain.depth-0.5);
         this.addNode(this.tree);
 
+        // Init lab cat
         this.labCat = new LabCatModel();
         this.labCat.prsa.position = V2(-6,-8);
         this.leafBlower = new LeafBlowerModel();
         this.leafBlower.prsa.position = V2(0, 0.40); //position in terms of labCat position
+        this.wind = new WindModel(); //wind is child of leafBlower
+        this.wind.prsa.position = V2(0, 0.5);
+        this.leafBlower.addChild(this.wind);
         this.labCat.addChild(this.leafBlower);
         this.addNode(this.labCat);
     }
@@ -80,18 +85,29 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      * @param t the current time, in seconds
      */
     timeUpdate(t: number){
+        this.labCat.timeUpdate(t);
         this.leafBlower.timeUpdate(t);
+        const currLeaves = this.getNodesOfType(LeafModel);
+        const leafBlowerRotation = this.leafBlower.prsa.rotation;
+        this.wind.timeUpdate(t, currLeaves, leafBlowerRotation); //blows wind at leaves in range
+
+        for (const leaf of this.fallingLeaves){
+            leaf.timeUpdate(t); //updates leaf positions
+        }
     }
 
     /** Key presses, forwarded from the scene controller. */
     onKeyDown(key: string){
         this.labCat.onKeyDown(key);
         this.leafBlower.onKeyDown(key);
+        this.wind.onKeyDown(key);
     }
 
     /** Key releases, forwarded from the scene controller. Nothing uses them yet. */
     onKeyUp(key: string){
+        this.labCat.onKeyUp(key);
         this.leafBlower.onKeyUp(key);
+        this.wind.onKeyUp(key);
     }
 
     /**
@@ -101,5 +117,12 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
     onClick(worldPoint: Vec2){
         // this.branch.moveTo(worldPoint);
         // this.tree.moveTo(worldPoint);
+    }
+
+    /**
+     * Add leaf to this.fallingLeaves
+     */
+    addLeaf(leaf: LeafModel){
+        this.fallingLeaves.push(leaf);
     }
 }

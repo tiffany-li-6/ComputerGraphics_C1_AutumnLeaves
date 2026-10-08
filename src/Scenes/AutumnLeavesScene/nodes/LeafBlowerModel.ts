@@ -34,14 +34,17 @@ import {
 export class LeafBlowerModel extends ANodeModel2D{
     /** Names of this node's control-panel entries. Use these with `GetAppState().getState(...)`. */
     static ControlKeys = {
-        LeafBlowerForce: "LeafBlowerForce",
+
     }
 
-    /** Angle rotated for a tap of the keys 1 or 2  */
+    /** Angle rotated for a tap of the keys A or D  */
     static RotateStep = 0.25;
 
-    /** Speed of angle rotation when holding down 1 or 2 */
+    /** Speed of angle rotation when holding down A or D */
     static RotateSpeed = 2;
+
+    /** How far the blower can turn either way from upright, in radians (relative to its parent, the cat). */
+    static MaxRotation = Math.PI/2;
 
 
 
@@ -58,7 +61,6 @@ export class LeafBlowerModel extends ANodeModel2D{
      */
     static SetAppState(appState: AppState){
         // A slider: name, initial value, min, max, step size
-        appState.addSliderIfMissing(LeafBlowerModel.ControlKeys.LeafBlowerForce, 1, 0, 5, 0.1);
     }
 
     /**
@@ -99,49 +101,56 @@ export class LeafBlowerModel extends ANodeModel2D{
         const dt = (this.lastTime === undefined) ? 0 : t - this.lastTime;
         this.lastTime = t;
 
-        //if holding down '1' = rotating left
-        if (this.isRotatingLeft){
-            this.prsa.rotation += LeafBlowerModel.RotateSpeed * dt;
-            this.signalTransformUpdate();
-
+        //if holding down 'A' = rotating left
+        if (this.isRotatingLeft) {
+            this.rotateBy(LeafBlowerModel.RotateSpeed * dt);
         }
-        //hold down '2' = rotating right
+        //hold down 'D' = rotating right
         if (this.isRotatingRight){
-            this.prsa.rotation -= LeafBlowerModel.RotateSpeed * dt;
-            this.signalTransformUpdate();
+            this.rotateBy(-LeafBlowerModel.RotateSpeed * dt);
         }
     }
 
     /**
-     * Keyboard input, forwarded from the scene controller. The '1' rotates left, and '2' rotates right.
-     * If '1' or '2' is held down, then it keeps rotating that direction
+     * Turns the blower by `delta` radians (positive is counterclockwise), then clamps the result to
+     * [-MaxRotation, MaxRotation]. Every rotation change goes through here, so the limits can't be skipped.
+     * Clamping after the change (instead of checking before it) means the blower stops exactly at the limit
+     * rather than one step past it.
+     * @param delta change in rotation, in radians
+     */
+    rotateBy(delta: number){
+        const max = LeafBlowerModel.MaxRotation;
+        this.prsa.rotation = Math.min(Math.max(this.prsa.rotation + delta, -max), max);
+        this.signalTransformUpdate();
+    }
+
+    /**
+     * Keyboard input, forwarded from the scene controller. The 'A' rotates left, and 'D' rotates right.
+     * If 'A' or 'D' is held down, then it keeps rotating that direction
      * @param key the `key` value of the keyboard event, for example "ArrowLeft"
      */
     onKeyDown(key: string){
         const angleStep = LeafBlowerModel.RotateStep;
-        if (key === "1"){
-            this.prsa.rotation += angleStep;
+        if ((key === "A" || key === "a")){
+            this.rotateBy(angleStep);
             this.isRotatingLeft = true; //in case key is held down, key up logic is in onKeyUp
-            this.signalTransformUpdate();
         }
-        if (key === "2"){
-            this.prsa.rotation -= angleStep;
+        if ((key === "D" || key === "d")){
+            this.rotateBy(-angleStep);
             this.isRotatingRight = true; //in case key is held down, key up logic is in onKeyUp
-            this.signalTransformUpdate();
         }
     }
 
     /**
-     * Keyboard input, forwarded from the scene controller. The '1' rotates left, and '2' rotates right.
-     * If '1' or '2' is held down, then it keeps rotating that direction
+     * Keyboard input, forwarded from the scene controller. The 'A' rotates left, and 'D' rotates right.
+     * If 'A' or 'D' is held down, then it keeps rotating that direction
      * @param key the `key` value of the keyboard event, for example "ArrowLeft"
      */
     onKeyUp(key: string){
-        const angleStep = LeafBlowerModel.RotateStep;
-        if (key === "1"){
+        if (key === "A" || key === "a"){
             this.isRotatingLeft = false;
         }
-        if (key === "2"){
+        if (key === "D" || key === "d"){
             this.isRotatingRight = false;
         }
     }

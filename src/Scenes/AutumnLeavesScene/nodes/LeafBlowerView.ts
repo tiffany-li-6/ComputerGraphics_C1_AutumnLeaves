@@ -1,5 +1,5 @@
 import {AGLNodeView, ALabel, APolygonGraphic2D} from "../../../anigraph";
-import {BranchSegmentModel} from "./BranchSegmentModel";
+import {LeafBlowerModel} from "./LeafBlowerModel";
 
 
 /**
@@ -24,8 +24,8 @@ export class LeafBlowerView extends AGLNodeView{
     element!: APolygonGraphic2D;
 
     /** The model, typed as the class this view draws. */
-    get model(): BranchSegmentModel {
-        return this._model as BranchSegmentModel;
+    get model(): LeafBlowerModel {
+        return this._model as LeafBlowerModel;
     }
 
     /**
