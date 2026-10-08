@@ -80,6 +80,7 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      * @param t the current time, in seconds
      */
     timeUpdate(t: number){
+        this.labCat.timeUpdate(t);
         this.leafBlower.timeUpdate(t);
     }
 
@@ -92,6 +93,7 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
 
     /** Key releases, forwarded from the scene controller. Nothing uses them yet. */
     onKeyUp(key: string){
+        this.labCat.onKeyUp(key);
         this.leafBlower.onKeyUp(key);
         this.wind.onKeyUp(key);
     }

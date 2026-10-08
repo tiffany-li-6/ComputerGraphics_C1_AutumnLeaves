@@ -39,13 +39,14 @@ export class LabCatModel extends ANodeModel2D{
     }
 
     /** How far one arrow-key press moves the shape, in world units. */
-    static NudgeDistance = 0.1;
-
+    static nudgeStep = 0.25;
+    static MoveSpeed = 2;
 
     /** The time of the previous frame, used to compute how much time passed between frames. */
-    /*
     lastTime?: number;
-    */
+
+    isMovingLeft: boolean = false;
+    isMovingRight: boolean = false;
 
     /**
      * Adds this node's controls to the control panel. The scene model calls it from `initAppState`.
@@ -82,23 +83,52 @@ export class LabCatModel extends ANodeModel2D{
 
     }
 
+    /**
+     * The per-frame update: spin at the speed set in the control panel.
+     * @param t the current time, in seconds
+     */
+    timeUpdate(t: number, ...args: any[]){
+        super.timeUpdate(t, ...args);
 
+        // How much time passed since the last frame (0 on the first frame).
+        const dt = (this.lastTime === undefined) ? 0 : t - this.lastTime;
+        this.lastTime = t;
+
+        //if holding down left arrow, move left
+        if (this.isMovingLeft) {
+            this.moveBy(-1 * LabCatModel.MoveSpeed * dt);
+        }
+        //if holding down right arrow, move right
+        if (this.isMovingRight) {
+            this.moveBy(LabCatModel.MoveSpeed * dt);
+        }
+    }
 
     /**
      * Keyboard input, forwarded from the scene controller. The arrow keys nudge the shape.
      * @param key the `key` value of the keyboard event, for example "ArrowLeft"
      */
     onKeyDown(key: string){
-        const step = LabCatModel.NudgeDistance;
-        let offset: Vec2|undefined;
-        switch(key){
-            case "ArrowLeft": offset = V2(-step, 0); break;
-            case "ArrowRight": offset = V2(step, 0); break;
-            //case "ArrowUp": offset = V2(0, step); break;
-            //case "ArrowDown": offset = V2(0, -step); break;
+
+        if ((key === "ArrowLeft")){
+            this.isMovingLeft = true; //in case key is held down, key up logic is in onKeyUp
         }
-        if(offset){
-            this.moveTo(this.prsa.position.plus(offset));
+        if ((key === "ArrowRight")){
+            this.isMovingRight = true; //in case key is held down, key up logic is in onKeyUp
+        }
+    }
+
+    /**
+     * Keyboard input, forwarded from the scene controller. The 'A' rotates left, and 'D' rotates right.
+     * If 'A' or 'D' is held down, then it keeps rotating that direction
+     * @param key the `key` value of the keyboard event, for example "ArrowLeft"
+     */
+    onKeyUp(key: string){
+        if (key === "ArrowLeft"){
+            this.isMovingLeft = false;
+        }
+        if (key === "ArrowRight"){
+            this.isMovingRight = false;
         }
     }
 
@@ -111,4 +141,12 @@ export class LabCatModel extends ANodeModel2D{
         this.prsa.position = position.clone();
         this.signalTransformUpdate();
     }
+
+    /**
+     * Moves the shape's x-axis location by n units
+     */
+    moveBy(n: number){
+        this.moveTo(V2(this.prsa.position.x + n, this.prsa.position.y));
+    }
+
 }
