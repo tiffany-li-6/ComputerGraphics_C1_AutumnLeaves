@@ -35,7 +35,6 @@ import {
 export class WindModel extends ANodeModel2D{
     /** Names of this node's control-panel entries. Use these with `GetAppState().getState(...)`. */
     static ControlKeys = {
-        LeafBlowingPower: "Leaf Blowing Power",
         LeafBlowingDistance: "Leaf Blowing Distance",
         LeafBlowingBorder: "Leaf Blowing Border",
     }
@@ -53,7 +52,6 @@ export class WindModel extends ANodeModel2D{
      * @param appState
      */
     static SetAppState(appState: AppState){
-        appState.addSliderIfMissing(WindModel.ControlKeys.LeafBlowingPower, 1, 0, 5, 0.1);
         appState.addSliderIfMissing(WindModel.ControlKeys.LeafBlowingDistance, 1, 0, 5, 0.1);
         appState.addCheckboxControl(WindModel.ControlKeys.LeafBlowingBorder, true);
 
