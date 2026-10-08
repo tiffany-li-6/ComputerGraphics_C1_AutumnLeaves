@@ -25,6 +25,7 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
     leafBlower!: LeafBlowerModel;
     tree!: TreeModel;
     wind!: WindModel;
+    fallingLeaves: LeafModel[] = [];
 
 
     /**
@@ -82,6 +83,13 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
     timeUpdate(t: number){
         this.labCat.timeUpdate(t);
         this.leafBlower.timeUpdate(t);
+        const currLeaves = this.getNodesOfType(LeafModel);
+        const leafBlowerRotation = this.leafBlower.prsa.rotation;
+        this.wind.timeUpdate(t, currLeaves, leafBlowerRotation); //blows wind at leaves in range
+
+        for (const leaf of this.fallingLeaves){
+            leaf.timeUpdate(t); //updates leaf positions
+        }
     }
 
     /** Key presses, forwarded from the scene controller. */
@@ -105,5 +113,12 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
     onClick(worldPoint: Vec2){
         // this.branch.moveTo(worldPoint);
         // this.tree.moveTo(worldPoint);
+    }
+
+    /**
+     * Add leaf to this.fallingLeaves
+     */
+    addLeaf(leaf: LeafModel){
+        this.fallingLeaves.push(leaf);
     }
 }

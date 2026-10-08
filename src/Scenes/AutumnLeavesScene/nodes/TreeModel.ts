@@ -11,6 +11,7 @@ import {
     Vec2
 } from "../../../anigraph";
 import { BranchSegmentModel } from "./BranchSegmentModel";
+import {LeafModel} from "./LeafModel";
 
 /**
  * @c1scene AutumnLeavesScene
@@ -182,5 +183,18 @@ export class TreeModel extends AGroupNodeModel2D {
             branch.clearLeaves()
             branch.sproutLeaves(density)
         }
+    }
+
+    /**
+     * Returns List of all leaves in this tree
+     */
+    getLeaves(): LeafModel[]{
+        const output: LeafModel[] = [];
+        for (const branch of this.branches) {
+            for (const leaf of branch.leafList) {
+                output.push(leaf);
+            }
+        }
+        return output;
     }
 }

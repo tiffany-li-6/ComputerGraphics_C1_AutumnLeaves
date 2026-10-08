@@ -10,6 +10,7 @@ import {
     V2,
     Vec2, VertexArray2D
 } from "../../../anigraph";
+import {LeafModel} from "./LeafModel";
 
 /**
  * # An example node model
@@ -38,12 +39,27 @@ export class WindModel extends ANodeModel2D{
         LeafBlowingDistance: "Leaf Blowing Distance",
         LeafBlowingBorder: "Leaf Blowing Border",
     }
+    /** The time of the previous frame, used to compute how much time passed between frames. */
+    lastTime?: number;
 
     /** if debug/window border is control is toggled */
     isDebugOn: boolean = false;
 
+    /**
+     * if W/w is currently being pressed -> meaning wind is on
+     */
+    isWindOn: boolean = false;
+
+    windRotation: number = 0;
+
+        //does not change
     shortWidth: number = 0.3;
     angle: number = 0.25; //in PI radians
+
+    //changes
+    length: number = 1; //can change
+    longWidth: number = this.shortWidth + (2*this.length * Math.tan(Math.PI * this.angle)); //changes based on length changing
+    curveDepth: number = this.longWidth * 0.1; //changes based on longWidth
 
     /**
      * Adds this node's controls to the control panel. The scene model calls it from `initAppState`.
@@ -93,12 +109,6 @@ export class WindModel extends ANodeModel2D{
             polygon.addVertex(V2(x, y), color); //adds a vertex for each of numCurveEdges from start to end
         }
 
-        //short side (bottom) at y=-length
-        /*
-        polygon.addVertex(V2(shortWidth / 2, -length), color); //right
-        polygon.addVertex(V2(-shortWidth / 2, -length), color); //left
-
-         */
 
         return polygon;
 
@@ -126,7 +136,10 @@ export class WindModel extends ANodeModel2D{
         });
 
         //when wind blowing distance slider moves, the geometry is rebuilt
-        this.subscribeToAppState(WindModel.ControlKeys.LeafBlowingDistance, () => {
+        this.subscribeToAppState(WindModel.ControlKeys.LeafBlowingDistance, (distance: number) => {
+            this.length = distance;
+            this.longWidth = this.shortWidth + (2*this.length * Math.tan(Math.PI * this.angle));
+            this.curveDepth = this.longWidth * 0.1;
             this.rebuildWindGeometry();
         })
 
@@ -149,28 +162,81 @@ export class WindModel extends ANodeModel2D{
     }
 
     /**
+     * Checks if parameter world position coordinate is within the wind cone.
+     * Splits wind geometry into trapezoid + extended parabolic curve.
+     * Returns y distance from nozzle (y = 0) if point is in Wind.
+     * If point is not in wind, returns -1.
+     */
+    isPointWithinWind(pointPos: Vec2): number {
+        //convert point of world coords into local coords of the wind geometry
+        //wind has nozzle at y=0, and far end at y = length
+        //wind is child of leafBlower, is child of labCat
+        const pointLocal = this.worldToLocalWind(pointPos);
+        const xPos = pointLocal.x;
+        const yPos = pointLocal.y;
+
+        //test if point is within nozzle to far side y boundary
+        if (yPos < 0 || yPos > this.length + this.curveDepth) {
+            return -1;
+        }
+
+        //test if in trapezoid
+        if (yPos <= this.length){
+            //total width of cone at the point's y value
+            const yWidth = this.shortWidth + (yPos / this.length) * (this.longWidth - this.shortWidth);
+
+            //check if point is between -yWidth/2 and +yWidth/2
+            if (xPos >= -1 * yWidth/2 && xPos <= yWidth/2){
+                return yPos;
+            }
+            else return -1;
+        }
+        else{//test if in parabolic curve
+            const normY = (yPos - this.length) / this.curveDepth;
+            //reverse of y = cx^2
+            const yMaxHalfWidth = (this.longWidth /2) * Math.sqrt(1- normY);
+            if (xPos >= -1 * yMaxHalfWidth && xPos <= yMaxHalfWidth){
+                return yPos;
+            }
+            else return -1;
+        }
+
+    }
+
+    /**
+     * Converts a position in world coords into coords of this local wind model
+     */
+    worldToLocalWind (worldPos: Vec2) : Vec2{
+        const worldTransform = this.getWorldTransform();
+        return worldTransform.getInverse().times(worldPos);
+    }
+
+    /**
      * Build's Model's geometry when called at startup, and whenever a relevant control is changed
      */
     rebuildWindGeometry(){
-        const length = GetAppState().getState(WindModel.ControlKeys.LeafBlowingDistance);
-        const longWidth = this.shortWidth + (2*length * Math.tan(Math.PI * this.angle));
         const debugColor= Color.Blue();
         const numCurveEdges = 15;
 
-        this.setVerts(WindModel.ConeGeometry(length, this.shortWidth, longWidth, debugColor, numCurveEdges));
+        this.setVerts(WindModel.ConeGeometry(this.length, this.shortWidth, this.longWidth, debugColor, numCurveEdges));
         this.signalGeometryUpdate();
     }
 
 
     /**
-     * The per-frame update: TODO if w/W is pressed, check interactions with leaves here.
+     * The per-frame update:
      * @param t the current time, in seconds
      */
-    timeUpdate(t: number, ...args: any[]) {
+    timeUpdate(t: number, leaves: LeafModel[], windRot: number,  ...args: any[]) {
         super.timeUpdate(t, ...args);
 
         // How much time passed since the last frame (0 on the first frame).
-        //const dt = (this.lastTime === undefined) ? 0 : t - this.lastTime;
+        const dt = (this.lastTime === undefined) ? 0 : t - this.lastTime;
+
+        if (this.isWindOn) {
+            this.windRotation = windRot;
+            this.checkWindLeafCollisions(t, leaves);
+        }
     }
 
 
@@ -180,8 +246,9 @@ export class WindModel extends ANodeModel2D{
      */
     onKeyDown(key: string){
         if (key === "w" || key === "W"){
-            if (this.isDebugOn) this.visible = true;
+            this.isWindOn = true;
         }
+        this.visible = this.isWindOn && this.isDebugOn;
     }
 
     /**
@@ -191,6 +258,7 @@ export class WindModel extends ANodeModel2D{
     onKeyUp(key: string){
         if (key === "w" || key === "W"){
             this.visible = false;
+            this.isWindOn = false;
         }
     }
 
@@ -203,5 +271,63 @@ export class WindModel extends ANodeModel2D{
         this.prsa.position = position.clone();
         this.signalTransformUpdate();
     }
+
+    /**
+     * Loops through all leaves in scene, and checks if their position is inside wind geometry
+     * Changes to world coordinates inside, to compare leafs and wind
+     */
+    checkWindLeafCollisions(dt: number, leaves: LeafModel[]) {
+        for (const leaf of leaves) {
+            //convert leaf to world position to check if it is in wind cone
+            const leafWorld = leaf.getWorldTransform().times(V2(0,0));
+
+            const leafToBlowerDistance = this.isPointWithinWind(leafWorld); //is -1 if leaf not in wind region
+            if ( leafToBlowerDistance >= 0){ //can blow attached and detached leaves
+                //max slider control length is 5 -> larger number is more power
+                const power: number = this.length/10
+                const windVelFromDistanceAway: Vec2 = this.getVelocityDir().times(power);
+                if (leaf.isAttached()){ //if attached, need to see if will detach
+                    //TODO implement threshold/decision for when an attached leaf should fall off
+                    //for now, just saying it will auto fall off if colliding
+                    leaf.addVelocity(windVelFromDistanceAway);
+
+                    //detach leaf from branch/tree models
+                    leaf.attached = false;
+                    const worldCoords = leafWorld;
+                    if (leaf.parent){
+                        leaf.parent.removeChild(leaf);
+                    }
+
+                    //get access to AutumnLeavesSceneModel by looping upwards to top level parent
+                    let mainScene: any = this;
+                    while (mainScene.parent){ //has another parent
+                        mainScene = mainScene.parent;
+                    }
+                    //once get to AutumnLeavesScene, no more parents
+                    mainScene.addNode(leaf); //node was removed earlier
+                    mainScene.addLeaf(leaf);
+                    leaf.prsa.position = worldCoords;
+                    leaf.signalTransformUpdate();
+
+                }
+                else{ //if already detached, just add velocity
+                    leaf.addVelocity(windVelFromDistanceAway);
+                }
+            }
+        }
+    }
+
+    /**
+     * Returns a velocity vector that represents the wind's effect on other objects
+     * Only direction, both x and y
+     * Used to add to fallen leaves' velocity, and to give an initial velocity when leaves detach
+     */
+    getVelocityDir(): Vec2{
+        const worldTransform = this.getWorldTransform();
+        const rotation = this.windRotation;
+
+        return V2(-1 * Math.sin(rotation), Math.cos(rotation));
+    }
+
 }
 

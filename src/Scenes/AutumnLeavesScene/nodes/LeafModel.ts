@@ -61,6 +61,12 @@ export class LeafModel extends AMeshModel2D {
     /** The time of the previous frame, used to compute how much time passed between frames. */
     lastTime?: number;
 
+    /** Is this leaf attached to the tree or not? */
+    attached: boolean = true;
+
+    /** Velocity of this leaf */
+    velocity: Vec2 = V2(0,0);
+
     /**
      * Adds this node's controls to the control panel. The scene model calls it from `initAppState`.
      * @param appState
@@ -163,6 +169,30 @@ export class LeafModel extends AMeshModel2D {
      */
     timeUpdate(t: number, ...args: any[]){
         super.timeUpdate(t, ...args);
+
+        const dt = (this.lastTime === undefined) ? 0 : t - this.lastTime;
+        this.lastTime = t;
+
+        if (!this.attached){ //only update if leaf is detached and needs to move
+
+            //velocity changes by drag force and gravity
+            const draggedGravity = 2.0; //drag force and gravity combo for y movement
+            this.velocity.y -= draggedGravity * dt;
+
+            const dragOnX = 3;
+            this.velocity.x -= this.velocity.x * dragOnX * dt;
+
+            //velocity changes by wind effect will be applied through WindModel
+
+            //update leaf position
+            //setting 'ground' level to be -9.95, leaves cannot fall lower than that
+
+            this.prsa.position = this.prsa.position.plus(this.velocity.times(dt));
+            if (this.prsa.position.y < -9.95){
+                this.prsa.position = V2(this.prsa.position.x, -9.95);
+            }
+            this.signalTransformUpdate()
+        }
     }
 
     /**
@@ -173,5 +203,22 @@ export class LeafModel extends AMeshModel2D {
         // clone() so this node doesn't share the Vec2 object with the caller: assigning a Vec2 copies a reference.
         this.prsa.position = position.clone();
         this.signalTransformUpdate();
+    }
+
+    /**
+     * Returns if this leaf is attached to the tree
+     */
+    isAttached(){
+        return this.attached;
+    }
+
+
+
+    /**
+     * Changes velocity of this leaf
+     * @param v velocity change vector
+     */
+    addVelocity(v : Vec2){
+        this.velocity = this.velocity.clone().plus(v);
     }
 }
