@@ -39,8 +39,7 @@ export class LabCatModel extends ANodeModel2D{
     }
 
     /** How far one arrow-key press moves the shape, in world units. */
-    static nudgeStep = 0.25;
-    static MoveSpeed = 2;
+    static MoveSpeed = 4;
 
     /** The time of the previous frame, used to compute how much time passed between frames. */
     lastTime?: number;
