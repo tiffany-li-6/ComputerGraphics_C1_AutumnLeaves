@@ -82,17 +82,9 @@ export class WindModel extends ANodeModel2D{
         polygon.addVertex(V2(-shortWidth/2, 0), color);
         polygon.addVertex(V2(shortWidth/2, 0), color);
 
-
-        //long, curved side (top) at y=0
         for (let i = 0; i < numCurveEdges; i++) { //i goes from 0 to (numCurveEdges -1)
             const alpha = i / (numCurveEdges - 1);
             const x = (longWidth / 2) * (1 - 2*alpha);
-
-            //parabolic curve is y = c (x^2)
-            //set endpoints + middle point of curve outwards
-            //y = [curveDepth * (xNorm ^2)] - curveDepth
-            //the -curveDepth is to orient it with the endpoints
-            //y = -(curveDepth) * (1 - xNorm^2)
 
             const curveDepth = longWidth * 0.1; //change based on how deep curve
             const xNorm = x / (longWidth / 2); //normalize x
@@ -138,6 +130,22 @@ export class WindModel extends ANodeModel2D{
             this.rebuildWindGeometry();
         })
 
+    }
+    /**
+     * Returns the wind force at `worldPoint` in world coordinates, originating from the end of the leaf
+     * blower. The force is a linear interpolation between 0 and 1, where points furthest from the 
+     * end of the leaf blower yield a value 0.
+     * @param worldPoint the point, in world coordinates, to obtain the wind force
+     */
+    getWindForce(worldPoint:Vec2): number {
+        // Convert from world point to local point for computation
+        const localToWorld = this.getWorldTransform();
+        const worldToLocal = localToWorld.getInverse();
+        const localPoint = worldToLocal.times(worldPoint)
+
+        // Compute distance and TODO FINISH
+        const distance = Math.abs(localPoint.minus(new Vec2(0,0)).L2())
+        return 0;
     }
 
     /**
