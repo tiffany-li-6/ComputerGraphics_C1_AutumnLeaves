@@ -17,10 +17,11 @@ import * as Bezier from "../tools/CubicBezierFunctions";
  * A leaf whose outline is made of two cubic Bezier curves that both start at the stem (the origin) and end at the
  * tip, `(0, length)`. The left curve bulges out to `-x` and the right curve to `+x`:
  * ```
- *              tip (0, length)
- *             /  \
- *     left   (    )   right
- *    curve    \  /    curve
+ *                ^  tip (0, length)
+ *             /    )
+ *     left   (  |  )   right
+ *    curve    \ | /    curve
+ *               |
  *              stem (0, 0)
  * ```
  * Each curve is sampled into points with `createLeafSpline`, and the sampled points become the vertices of a filled
@@ -141,7 +142,7 @@ export class LeafModel extends AMeshModel2D {
      * back to the stem, which goes around **clockwise**. The stem and tip are shared by both curves, so the right
      * curve's copies of them are dropped (duplicate vertices can break the polygon's triangulation).
      *
-     * Each vertex is colored by how far up the leaf it is: `baseColor` at the stem, `tipColor` at the tip.
+     * Each vertex is colored by how far up the leaf it is: `baseColor` at the stem, `tipColor` at the edges.
      */
     rebuildGeometry(){
         this.rightControlPoints = LeafModel.RightControlPoints(this.length, this.width);

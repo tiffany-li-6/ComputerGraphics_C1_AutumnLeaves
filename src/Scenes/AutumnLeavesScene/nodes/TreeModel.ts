@@ -50,7 +50,7 @@ import {LeafModel} from "./LeafModel";
 @ASerializable("TreeModel")
 export class TreeModel extends AGroupNodeModel2D {
     static ControlKeys = {
-        /** Angle between neighboring sibling branches, in degrees. */
+        /** Total angle between the two outermost sibling branches, in degrees. */
         BranchAngle: "TreeBranchAngle",
         TreeLeafDensity: "TreeLeafDensity",
         // Add wind movements???
@@ -59,8 +59,8 @@ export class TreeModel extends AGroupNodeModel2D {
     /** The maximum amount of levels for the tree. */
 
     static MaxLevel = 3;
-    static LengthDecrScale = 0.70;
-    static WidthDecrScale = 0.50;
+    static LengthDecrScale = 0.60;
+    static WidthDecrScale = 0.45;
 
     branches:BranchSegmentModel[] = [];
     trunkLength:number;
@@ -81,8 +81,9 @@ export class TreeModel extends AGroupNodeModel2D {
      * @param appState
      */
     static SetAppState(appState: AppState){
-        // Angle between neighboring sibling branches: name, initial value, min, max, step size (all in degrees)
-        appState.addSliderIfMissing(TreeModel.ControlKeys.BranchAngle, 60, 0, 90, 1);
+        // Total angle between the outermost sibling branches: name, initial value, min, max, step size (all in
+        // degrees). With 3 children this covers the same fans as the old 30-70 degrees between neighbors.
+        appState.addSliderIfMissing(TreeModel.ControlKeys.BranchAngle, 120, 60, 140, 1);
         // // A slider: name, initial value, min, max, step size
         // appState.addSliderIfMissing(TreeModel.ControlKeys.SpinSpeed, 1, -5, 5, 0.01);
         // // A color picker: name, initial value
@@ -97,7 +98,7 @@ export class TreeModel extends AGroupNodeModel2D {
      * @param nSides number of sides
      * @param radius size, in world units
      */
-    constructor(trunkLength:number = 8, trunkWidth:number = 1.5, numChilds:number = 3){
+    constructor(trunkLength:number = 8, trunkWidth:number = 1.5, numChilds:number = 4){
         super();
         this.trunkLength = trunkLength;
         this.trunkWidth = trunkWidth;
@@ -146,20 +147,24 @@ export class TreeModel extends AGroupNodeModel2D {
 
     /**
      * The rotation of the `i`th of `n` sibling branches, fanned out symmetrically around their parent's direction.
-     * Neighboring siblings are `angleDegrees` apart; with 3 children at 60 degrees this gives -60, 0 and +60.
+     * The outermost two siblings are `totalDegrees` apart, and the rest are evenly spaced between them; with 3
+     * children at 120 degrees this gives -60, 0 and +60. A single child points straight along its parent.
      * @param i which sibling, from 0 to n-1
      * @param n how many siblings there are
-     * @param angleDegrees angle between neighboring siblings, in degrees
+     * @param totalDegrees angle between the two outermost siblings, in degrees
      * @returns the rotation relative to the parent segment, in radians
      */
-    static SpreadRotation(i: number, n: number, angleDegrees: number): number {
-        // (i - (n-1)/2) centers the indices on 0, e.g. 0,1,2 becomes -1,0,1.
-        return (i - (n-1)/2) * angleDegrees * Math.PI/180;
+    static SpreadRotation(i: number, n: number, totalDegrees: number): number {
+        // With one child there is no spread (and n-1 would divide by zero).
+        if (n <= 1) { return 0; }
+        // i/(n-1) runs from 0 to 1 across the siblings; subtracting 0.5 centers it on 0, e.g. 0,1,2 becomes
+        // -0.5,0,+0.5. Scaling by the total puts the outermost siblings at -total/2 and +total/2.
+        return (i / (n-1) - 0.5) * totalDegrees * Math.PI/180;
     }
 
     /**
      * Re-angles every branch to the given spread, keeping each one attached at its parent's tip.
-     * @param angleDegrees angle between neighboring sibling branches, in degrees
+     * @param angleDegrees total angle between the two outermost sibling branches, in degrees
      */
     applyBranchAngle(angleDegrees: number){
         for (const segment of this.branches) {
@@ -175,7 +180,7 @@ export class TreeModel extends AGroupNodeModel2D {
     }
 
     /**
-     * Re-grows leaves on each branch by calling the sprouLeaves function on each branch segment of the tree
+     * Re-grows leaves on each branch by calling the sproutLeaves function on each branch segment of the tree
      * @param density density of the tree's leaves ranging from 0 (least dense) to 1 (most dense)
      */
     regrowLeaves(density:number) {

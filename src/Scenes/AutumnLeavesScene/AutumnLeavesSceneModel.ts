@@ -6,6 +6,7 @@ import {LeafBlowerModel} from "./nodes/LeafBlowerModel";
 import {TreeModel} from "./nodes/TreeModel";
 import {LeafModel} from "./nodes/LeafModel";
 import {WindModel} from "./nodes";
+import {TerrainModel} from "./nodes/TerrainModel";
 
 /**
  * The scene model. It creates the scene's nodes, passes time and input on to them, and is the place for logic that
@@ -26,6 +27,7 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
     tree!: TreeModel;
     wind!: WindModel;
     fallingLeaves: LeafModel[] = [];
+    terrain!: TerrainModel;
 
 
     /**
@@ -35,7 +37,6 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      */
     initAppState(appState: AppState){
         super.initAppState(appState);
-        BranchSegmentModel.SetAppState(appState);
         LabCatModel.SetAppState(appState);
         LeafBlowerModel.SetAppState(appState);
         TreeModel.SetAppState(appState);
@@ -57,13 +58,17 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      * scene model: it throws an error. Under a node, use `parent.addChild(child)`.
      */
     async initScene(){
-
+        // Init terrain
+        this.terrain = new TerrainModel();
+        this.terrain.prsa.position = V2(0, -this.sceneScale);
+        this.addNode(this.terrain);
 
         // Init tree
         this.tree = new TreeModel();
-        this.tree.prsa.position = V2(0, -this.sceneScale);
+        this.tree.prsa.position = V2(0, -this.sceneScale + this.terrain.heightAt(0) + this.terrain.depth-0.5);
         this.addNode(this.tree);
 
+        // Init lab cat
         this.labCat = new LabCatModel();
         this.labCat.prsa.position = V2(-6,-8);
         this.leafBlower = new LeafBlowerModel();
@@ -73,7 +78,6 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
         this.leafBlower.addChild(this.wind);
         this.labCat.addChild(this.leafBlower);
         this.addNode(this.labCat);
-
     }
 
     /**

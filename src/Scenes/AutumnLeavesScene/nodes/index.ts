@@ -9,3 +9,5 @@ export * from "./LeafBlowerModel";
 export * from "./LeafBlowerView";
 export * from "./WindModel";
 export * from "./WindView";
+export * from "./TerrainModel";
+
