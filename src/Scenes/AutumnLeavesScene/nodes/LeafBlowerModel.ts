@@ -43,6 +43,9 @@ export class LeafBlowerModel extends ANodeModel2D{
     /** Speed of angle rotation when holding down A or D */
     static RotateSpeed = 2;
 
+    /** How far the blower can turn either way from upright, in radians (relative to its parent, the cat). */
+    static MaxRotation = Math.PI/2;
+
 
 
     /** The time of the previous frame, used to compute how much time passed between frames. */
@@ -99,16 +102,26 @@ export class LeafBlowerModel extends ANodeModel2D{
         this.lastTime = t;
 
         //if holding down 'A' = rotating left
-        if (this.isRotatingLeft){
-            this.prsa.rotation += LeafBlowerModel.RotateSpeed * dt;
-            this.signalTransformUpdate();
-
+        if (this.isRotatingLeft) {
+            this.rotateBy(LeafBlowerModel.RotateSpeed * dt);
         }
         //hold down 'D' = rotating right
         if (this.isRotatingRight){
-            this.prsa.rotation -= LeafBlowerModel.RotateSpeed * dt;
-            this.signalTransformUpdate();
+            this.rotateBy(-LeafBlowerModel.RotateSpeed * dt);
         }
+    }
+
+    /**
+     * Turns the blower by `delta` radians (positive is counterclockwise), then clamps the result to
+     * [-MaxRotation, MaxRotation]. Every rotation change goes through here, so the limits can't be skipped.
+     * Clamping after the change (instead of checking before it) means the blower stops exactly at the limit
+     * rather than one step past it.
+     * @param delta change in rotation, in radians
+     */
+    rotateBy(delta: number){
+        const max = LeafBlowerModel.MaxRotation;
+        this.prsa.rotation = Math.min(Math.max(this.prsa.rotation + delta, -max), max);
+        this.signalTransformUpdate();
     }
 
     /**
@@ -118,15 +131,13 @@ export class LeafBlowerModel extends ANodeModel2D{
      */
     onKeyDown(key: string){
         const angleStep = LeafBlowerModel.RotateStep;
-        if (key === "A" || key === "a"){
-            this.prsa.rotation += angleStep;
+        if ((key === "A" || key === "a")){
+            this.rotateBy(angleStep);
             this.isRotatingLeft = true; //in case key is held down, key up logic is in onKeyUp
-            this.signalTransformUpdate();
         }
-        if (key === "D" || key === "d"){
-            this.prsa.rotation -= angleStep;
+        if ((key === "D" || key === "d")){
+            this.rotateBy(-angleStep);
             this.isRotatingRight = true; //in case key is held down, key up logic is in onKeyUp
-            this.signalTransformUpdate();
         }
     }
 

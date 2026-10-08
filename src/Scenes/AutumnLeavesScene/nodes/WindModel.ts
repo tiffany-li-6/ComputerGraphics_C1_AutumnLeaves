@@ -43,7 +43,7 @@ export class WindModel extends ANodeModel2D{
     /** if debug/window border is control is toggled */
     isDebugOn: boolean = false;
 
-    shortWidth: number = 0.5;
+    shortWidth: number = 0.3;
     angle: number = 0.25; //in PI radians
 
     /**
@@ -55,7 +55,7 @@ export class WindModel extends ANodeModel2D{
     static SetAppState(appState: AppState){
         appState.addSliderIfMissing(WindModel.ControlKeys.LeafBlowingPower, 1, 0, 5, 0.1);
         appState.addSliderIfMissing(WindModel.ControlKeys.LeafBlowingDistance, 1, 0, 5, 0.1);
-        appState.addCheckboxControl(WindModel.ControlKeys.LeafBlowingBorder, false);
+        appState.addCheckboxControl(WindModel.ControlKeys.LeafBlowingBorder, true);
 
     }
 
