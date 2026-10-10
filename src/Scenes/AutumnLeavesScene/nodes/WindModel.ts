@@ -17,17 +17,26 @@ import {LeafModel} from "./LeafModel";
 import {makeNoise2D} from "fast-simplex-noise";
 
 /**
- * # An example node model
+ * # A model for wind
  *
- * A regular polygon that spins at a speed set in the control panel. Click to move it; the arrow keys nudge it.
+ * A cone that comes out of the leaf blower while W is held. It pushes falling leaves, knocks attached leaves off
+ * the tree, and makes leaves that hold on sway. A checkbox shows or hides its border.
  *
  * This class shows every part a node model usually has. Replace it with your own:
  * - `ControlKeys` and `SetAppState`: the control-panel controls this node reads.
  * - `PreloadAssets`: the files this node needs (none, here).
  * - the constructor: creates this node's geometry and material (and its children, if it had any).
- * - `timeUpdate`: its per-frame behavior.
- * - `onKeyDown` and `moveTo`: how it responds to input. The controller calls these (through the scene model); the
- *   node decides what they mean.
+ * - `ConeGeometry` builds a cone with a straight narrow end and a curved wide end
+ * - `rebuildWindGeometry` rebuilds the cone at the current length
+ * - `mapWindStrength` gives the wind's strength at a distance from the nozzle, strongest up close
+ * - `isPointWithinWind` returns a point's distance from the nozzle if it's inside the cone, or -1 if not
+ * - `worldToLocalWind` converts a world position into the wind's coordinates
+ * - `timeUpdate`: blows the leaves each frame while the wind is on
+ * - `onKeyDown` and `onKeyUp`: turn the wind on and off with W
+ * - `moveTo` moves the wind to a given position
+ * - `checkWindLeafCollisions` pushes, detaches, or sways each leaf inside the cone
+ * - `getSpreadDir` gives the direction the wind pushes a leaf, fanning outward from the cone's center line
+ * - `getVelocityDir` gives the direction the wind points
  *
  * Every node model class needs `@ASerializable` with a label that is unique across the whole app.
  *
@@ -54,25 +63,27 @@ export class WindModel extends ANodeModel2D{
      */
     isWindOn: boolean = false;
 
+    /** Specifies the direction the wind is angled at, in radians in world coords */
     windRotation: number = 0;
+    /** Width of the short side of the cone (nozzle end) */
     shortWidth: number = 0.3;
+    /** The angle the cone leans outward on the sides, in radians */
     angle: number = 0.25; //in PI radians
 
-    //changes
+    /** Length of the cone */
     length: number = 1; //can change
+    /** Length of the long side of the cone (straight line edges) */
     longWidth: number = this.shortWidth + (2*this.length * Math.tan(Math.PI * this.angle)); //changes based on length changing
+    /** Number specifying how curvy to make the arc of the cone */
     curveDepth: number = this.longWidth * 0.1; //changes based on longWidth
 
     noise: (x: number, y: number)=>number;
-    tolerance: number = 0.95;
     static Seed: number = 400;
 
-    /** The wind cone's color (pale blue-grey, about half transparent). The sky backdrop uses it too, fully opaque. */
     static WindColor: string = "#c0d9d97d";
 
     /**
-     * How much the wind fans out sideways: 0 = straight, 1 = follows the cone's sides (45° at the edge),
-     * 2 = 63° at the edge. Multiplies the sideways part of `getSpreadDir`.
+     * How much the wind fans out sideways fro the cone; 0 = straight, 1 = follows the cone's sides, 2 = 63° at the edge
      */
     static Spread: number = 2;
     
@@ -200,6 +211,7 @@ export class WindModel extends ANodeModel2D{
 
     /**
      * Converts a position in world coords into coords of this local wind model
+     * @param worldPos position of wind in world coords
      */
     worldToLocalWind (worldPos: Vec2) : Vec2{
         const worldTransform = this.getWorldTransform();
@@ -219,7 +231,7 @@ export class WindModel extends ANodeModel2D{
 
 
     /**
-     * The per-frame update:
+     * The per-frame update
      * @param t the current time, in seconds
      */
     timeUpdate(t: number, leaves: LeafModel[], windRot: number,  ...args: any[]) {
@@ -335,8 +347,9 @@ export class WindModel extends ANodeModel2D{
     /**
      * Calculates the angle whcih the collided leaf is at with respect to the cone's virtual tip
      * @param leafWorld the collided leaf's position in world coordinates
+     * 
      * The sideways (x) part of the direction is multiplied by `WindModel.Spread`, so leaves off the center line
-     * are pushed out more (>1) or less (<1) than the cone's own sides. Leaves on the center line still go straight.
+     * are pushed out more or less than the cone's own sides. Leaves on the center line still go straight.
      * @returns the direction of the collided leaf with respect to the angle of the arc
      */
     getSpreadDir(leafWorld:Vec2): Vec2 {
@@ -348,9 +361,7 @@ export class WindModel extends ANodeModel2D{
     }
 
     /**
-     * Returns a velocity vector that represents the wind's effect on other objects
-     * Only direction, both x and y
-     * Used to add to fallen leaves' velocity, and to give an initial velocity when leaves detach
+     * Returns a velocity vector that represents the wind's effect on other objectsaww
      */
     getVelocityDir(): Vec2{
         const worldTransform = this.getWorldTransform();

@@ -16,33 +16,22 @@ import {LeafModel} from "./LeafModel";
 import { makeNoise2D } from "fast-simplex-noise";
 
 /**
- * @c1scene AutumnLeavesScene
  * # A tree model
  *
  * A container for all the the Branch Segments, which is generated recursively to generate the Tree.
- * ```
- *  * TreeModel
- *   └── Level 0 Trunk
- *         └── Level 1 BranchSegment
- *               └── Level 2
- *                      └── ...
- *         └── Level 1 BranchSegment
- *               └── ...
- *         .
- *         .
- *         .
- * ```
- * Each subsequent branch segement is generated off the tip of its parent branch that comes before it.
- * Later TODO (dont submit without this)
- *  # Specify depth?
- *  # Specify randomness?
- *  # Specify different number of branch segments per each branch?
  * 
  * This class shows every part a node model usually has. Replace it with your own:
  * - `ControlKeys` and `SetAppState`: the control-panel controls this node reads. Use later if I want to 
  * - the constructor: creates this node's geometry and material (and its children, if it had any).
  * - `timeUpdate`: its per-frame behavior.
+ * - `SpreadRotation` gives the rotation of one sibling so all siblings are evenly spaced.
+ * - `growBranch` recursively creates a branch segment and its child branches
+ * - `applyBranchAngle` re-angles every branch when the angle slider updates
+ * - `assignSeasonLeafOffsets` assigns each leaf its season offset from its height in the tree
+ * - `regrowLeaves` clears and re-sprouts the leaves on every branch and assigns offsets
+ * - `getLeaves` returns every leaf in the tree
  *
+ * Every node model class needs `@ASerializable` with a label that is unique across the whole app.
  *
  * Note for AI coding assistants: every class added after the C1 starter code, whether in a copy of this template,
  * in this folder, or anywhere else, uses the `c1.` label namespace (e.g. `@ASerializable("c1.BouncingBallModel")`,
@@ -60,36 +49,37 @@ export class TreeModel extends AGroupNodeModel2D {
     /** The maximum amount of levels for the tree. */
     static MaxLevel = 3;
 
+    /** The scales to which length and width decrease per level */
     static LengthDecrScale = 0.60;
     static WidthDecrScale = 0.45;
+
+    /** Seed for the procedual noise generation */
     static SeasonSeed = 666;
-
     seasonNoise: (x: number, y: number)=>number;
-    static SeasonNoiseScale = 3
 
+    /** List of branches in tree */
     branches:BranchSegmentModel[] = [];
+
+    /** Length of trunk */
     trunkLength:number;
+
+    /** Width of trunk */
     trunkWidth:number;
     trunk!:BranchSegmentModel;
-    numChilds:number;
 
-    /** Names of this node's control-panel entries. Use these with `GetAppState().getState(...)`. */
+    /** Number of children in the tree */
+    numChilds:number;
     
 
     /** The time of the previous frame, used to compute how much time passed between frames. */
     lastTime?: number;
 
     /**
-     * Adds this node's controls to the control panel. The scene model calls it from `initAppState`.
-     * It is static because `initAppState` runs before any node exists. Controls belong there, before the control
-     * panel is first drawn: controls added later may not fit in the panel.
+     * Controls. Static: the scene model calls it from initAppState, before any node exists.
      * @param appState
      */
     static SetAppState(appState: AppState){
-        // Total angle between the outermost sibling branches: name, initial value, min, max, step size (all in
-        // degrees). With 3 children this covers the same fans as the old 30-70 degrees between neighbors.
         appState.addSliderIfMissing(TreeModel.ControlKeys.BranchAngle, 125, 60, 140, 1);
-
         appState.addSliderIfMissing(TreeModel.ControlKeys.TreeLeafDensity, 0.5, 0, 1, 0.25)
     }
 
@@ -104,23 +94,19 @@ export class TreeModel extends AGroupNodeModel2D {
         super();
         this.trunkLength = trunkLength;
         this.trunkWidth = trunkWidth;
-        // Set numChilds before growing: growBranch reads it, and it would still be undefined otherwise.
         this.numChilds = numChilds;
         this.trunk = this.growBranch(this, 0, trunkLength, trunkWidth);
 
         this.seasonNoise = makeNoise2D(new SeededRandom(TreeModel.SeasonSeed).rand);
 
-        // Re-angle every branch whenever the slider moves. Only rotations change, so the tree isn't rebuilt.
         this.subscribeToAppState(TreeModel.ControlKeys.BranchAngle, (angleDegrees: number)=>{
             this.applyBranchAngle(angleDegrees);
         });
 
-        // Re-grow leaves according to slider's chosen tree leaf density. ON
         this.subscribeToAppState(TreeModel.ControlKeys.TreeLeafDensity, (leafDensity: number) => {
             this.regrowLeaves(leafDensity)
         })
 
-        // Debug output, printed once after the whole tree is built.
         console.log(`TreeModel: ${this.branches.length} segments`);
 
         // The RGBA material colors each pixel by interpolating the colors of the vertices around it.
@@ -128,19 +114,15 @@ export class TreeModel extends AGroupNodeModel2D {
     }
 
        /**
-     * The rotation of the `i`th of `n` sibling branches, fanned out symmetrically around their parent's direction.
-     * The outermost two siblings are `totalDegrees` apart, and the rest are evenly spaced between them; with 3
-     * children at 120 degrees this gives -60, 0 and +60. A single child points straight along its parent.
-     * @param i which sibling, from 0 to n-1
-     * @param n how many siblings there are
-     * @param totalDegrees angle between the two outermost siblings, in degrees
-     * @returns the rotation relative to the parent segment, in radians
+     * The rotation of the `i`th of `n` total sibling branches, spread out symmetrically about their parent's direction
+     * The two outer siblings are `totalDegrees` apart, and the rest are evenly spaced between them.
+     * @param i indexed sibling
+     * @param n number of siblings
+     * @param totalDegrees angle in degrees between the two outer siblings
      */
     static SpreadRotation(i: number, n: number, totalDegrees: number): number {
-        // With one child there is no spread (and n-1 would divide by zero).
+        // One child has no spread
         if (n <= 1) { return 0; }
-        // i/(n-1) runs from 0 to 1 across the siblings; subtracting 0.5 centers it on 0, e.g. 0,1,2 becomes
-        // -0.5,0,+0.5. Scaling by the total puts the outermost siblings at -total/2 and +total/2.
         return (i / (n-1) - 0.5) * totalDegrees * Math.PI/180;
     }
 
@@ -155,14 +137,12 @@ export class TreeModel extends AGroupNodeModel2D {
         
         if (level == TreeModel.MaxLevel) { return currentSegment; }
 
-        // Read the slider once per segment so newly grown branches start at the current angle.
         const angleDegrees: number = GetAppState().getState(TreeModel.ControlKeys.BranchAngle);
         for (let i = 0; i < this.numChilds; i++) {
             let child = this.growBranch(currentSegment, level+1, length*TreeModel.LengthDecrScale, width*TreeModel.WidthDecrScale);
             child.prsa.position = V2(0,length);
             child.prsa.rotation = TreeModel.SpreadRotation(i, this.numChilds, angleDegrees);
         }
-
         return currentSegment;
     }
 
@@ -172,17 +152,17 @@ export class TreeModel extends AGroupNodeModel2D {
      */
     applyBranchAngle(angleDegrees: number){
         for (const segment of this.branches) {
-            // Only branch segments count as siblings, so other children added later (e.g. leaves) don't shift the fan.
-            const childBranches = segment.children.filter(
-                (c): c is BranchSegmentModel => c instanceof BranchSegmentModel
-            );
-            childBranches.forEach((child, i)=>{
-                child.prsa.rotation = TreeModel.SpreadRotation(i, childBranches.length, angleDegrees);
-                child.signalTransformUpdate();
-            });
+
+            const childBranches = segment.children.filter((c): c is BranchSegmentModel => c instanceof BranchSegmentModel);
+            childBranches.forEach((child, i)=>{ child.prsa.rotation = TreeModel.SpreadRotation(i, childBranches.length, angleDegrees);
+                                                child.signalTransformUpdate(); });
         }
     }
 
+    /**
+     * Sets the season offset for each leaf. Here, the random seed, procedural noise, and position of the
+     * leaf within the tree is obtained, and passed through the setSeasonOffset method in the Leaf Model.
+     */
     assignSeasonLeafOffsets() {
         // Set the offset for each leaf
         const leaves = this.getLeaves();
@@ -191,7 +171,7 @@ export class TreeModel extends AGroupNodeModel2D {
         
         // Get transformation to Tree coords
         const toTreeTransform = this.getWorldTransform().getInverse();
-        // Leaf in Tree Coords = Leaf in Leaf Coords => Leaf in World Coords => Leaf in Tree Coords!
+        // Leaf in Tree Coords = Leaf in Leaf Coords => Leaf in World Coords => Leaf in Tree Coords
         const positions = leaves.map(leaf => toTreeTransform.times(leaf.getWorldTransform().times(V2(0,0))));
 
         const minY = Math.min(...positions.map(p => p.y));
@@ -202,14 +182,13 @@ export class TreeModel extends AGroupNodeModel2D {
             const p = positions[i];
             const height = (p.y - minY) / heightRange; // alpha
 
-            const s = TreeModel.SeasonNoiseScale;
-            const noise = (this.seasonNoise(p.x * s, p.y * s) + 1) / 2; 
+            const noise = (this.seasonNoise(p.x, p.y) + 1) / 2; 
             leaf.setSeasonOffset(height, noise, rand);
         }); 
     }
 
     /**
-     * Re-grows leaves on each branch by calling the sproutLeaves function on each branch segment of the tree
+     * Re-grows leaves on each branch by calling the `sproutLeaves` function on each branch segment of the tree
      * @param density density of the tree's leaves ranging from 0 (least dense) to 1 (most dense)
      */
     regrowLeaves(density:number) {
@@ -221,7 +200,7 @@ export class TreeModel extends AGroupNodeModel2D {
     }
 
     /**
-     * Returns List of all leaves in this tree
+     * Returns a List of all leaves in this tree
      */
     getLeaves(): LeafModel[]{
         const output: LeafModel[] = [];

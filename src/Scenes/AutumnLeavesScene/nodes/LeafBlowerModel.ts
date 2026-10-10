@@ -11,17 +11,19 @@ import {
 } from "../../../anigraph";
 
 /**
- * # An example node model
+ * # A model for Leaf Blower
  *
  * A regular polygon that spins at a speed set in the control panel. Click to move it; the arrow keys nudge it.
  *
  * This class shows every part a node model usually has. Replace it with your own:
- * - `ControlKeys` and `SetAppState`: the control-panel controls this node reads.
- * - `PreloadAssets`: the files this node needs (none, here).
+ * - `PreloadAssets`: loads the leaf blower image.
  * - the constructor: creates this node's geometry and material (and its children, if it had any).
  * - `timeUpdate`: its per-frame behavior.
  * - `onKeyDown` and `moveTo`: how it responds to input. The controller calls these (through the scene model); the
  *   node decides what they mean.
+ * - `onKeyDown` and `onKeyUp`: start and stop turning when A or D is pressed/released. The controller calls these
+ *   (through the scene model)
+ * - `rotateBy` turns the blower by a given angle
  *
  * Every node model class needs `@ASerializable` with a label that is unique across the whole app.
  *
@@ -32,37 +34,31 @@ import {
  */
 @ASerializable("LeafBlowerModel")
 export class LeafBlowerModel extends ANodeModel2D{
-    /** Names of this node's control-panel entries. Use these with `GetAppState().getState(...)`. */
-    static ControlKeys = {
 
-    }
-
-    /** Angle rotated for a tap of the keys A or D  */
+    /** Angle rotated for one tap of either keys A or D  */
     static RotateStep = 0.25;
 
-    /** Speed of angle rotation when holding down A or D */
+    /** Speed of angle rotation while holding down A or D */
     static RotateSpeed = 2;
 
-    /** How far the blower can turn either way from upright, in radians (relative to its parent, the cat). */
+    /** How far the blower can turn either way from upright, in radians, relative to lab cat */
     static MaxRotation = Math.PI/2;
-
-
 
     /** The time of the previous frame, used to compute how much time passed between frames. */
     lastTime?: number;
+
+    /** Boolean for whether the blower is rotating left or right */
     isRotatingLeft: boolean = false;
     isRotatingRight: boolean = false;
 
 
     /**
-     * Loads the files this node needs, before the scene is built. The scene model calls it from its own
-     * `PreloadAssets`. This shape needs none; a textured node would load its image here, e.g.
-     * `await AssetManager.loadTexture("./images/LabCatSitsSquareSmall.jpg", "LabCat");`
+     * Loads the files this node needs, before the scene is built, in this case LeafBlower.png. 
+     * The scene model calls it from its own `PreloadAssets`.
      */
     static async PreloadAssets(){
         await AssetManager.loadTexture("./images/LeafBlower.png", "LeafBlower");
     }
-
 
     /**
      * Creates the shape's geometry and material. Call `PreloadAssets()` before constructing one.
@@ -92,21 +88,18 @@ export class LeafBlowerModel extends ANodeModel2D{
         const dt = (this.lastTime === undefined) ? 0 : t - this.lastTime;
         this.lastTime = t;
 
-        //if holding down 'A' = rotating left
+        //if holding down 'A' => rotating left
         if (this.isRotatingLeft) {
             this.rotateBy(LeafBlowerModel.RotateSpeed * dt);
         }
-        //hold down 'D' = rotating right
+        //hold down 'D' => rotating right
         if (this.isRotatingRight){
             this.rotateBy(-LeafBlowerModel.RotateSpeed * dt);
         }
     }
 
     /**
-     * Turns the blower by `delta` radians (positive is counterclockwise), then clamps the result to
-     * [-MaxRotation, MaxRotation]. Every rotation change goes through here, so the limits can't be skipped.
-     * Clamping after the change (instead of checking before it) means the blower stops exactly at the limit
-     * rather than one step past it.
+     * Turns the blower by `delta` radians and ensures doesn't exceed by LeafBlowerModel.MaxRotation.
      * @param delta change in rotation, in radians
      */
     rotateBy(delta: number){

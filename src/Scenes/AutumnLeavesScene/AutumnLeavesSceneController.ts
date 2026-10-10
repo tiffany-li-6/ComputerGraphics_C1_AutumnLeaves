@@ -2,11 +2,9 @@ import {ASceneController2D} from "../../anigraph/starter/Scene2D/ASceneControlle
 import {ADragInteraction, AGroupNodeView, AInteractionEvent, AKeyboardInteraction, Color} from "../../anigraph";
 import {AutumnLeavesSceneModel} from "./AutumnLeavesSceneModel";
 import {LabCatModel} from "./nodes/LabCatModel";
-import {LabCatView} from "./nodes/LabCatView";
 import {LeafBlowerModel} from "./nodes/LeafBlowerModel";
-import {LeafBlowerView} from "./nodes/LeafBlowerView";
 import {PolygonView2D} from "../../anigraph/starter/nodes/polygon2D";
-import {BranchSegmentModel, BranchSegmentView, TreeModel, LeafModel, LeafView, TerrainModel, WindModel, WindView, SkyModel} from "./nodes";
+import {BranchSegmentModel, TreeModel, LeafModel, LeafView, TerrainModel, WindModel, SkyModel} from "./nodes";
 
 
 /**
@@ -44,9 +42,9 @@ export class AutumnLeavesSceneController extends ASceneController2D{
         super.initModelViewSpecs();   // keeps specs a parent class adds; camera and group-node specs are built in
         this.addModelViewSpec(BranchSegmentModel, PolygonView2D);
 
-        this.addModelViewSpec(LabCatModel, LabCatView);
-        this.addModelViewSpec(LeafBlowerModel, LeafBlowerView);
-        this.addModelViewSpec(WindModel, WindView);
+        this.addModelViewSpec(LabCatModel, PolygonView2D);
+        this.addModelViewSpec(LeafBlowerModel, PolygonView2D);
+        this.addModelViewSpec(WindModel, PolygonView2D);
 
         this.addModelViewSpec(TreeModel, AGroupNodeView);
         this.addModelViewSpec(LeafModel, LeafView)

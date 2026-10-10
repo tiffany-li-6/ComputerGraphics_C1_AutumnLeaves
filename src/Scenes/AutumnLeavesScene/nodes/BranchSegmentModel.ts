@@ -79,14 +79,14 @@ export class BranchSegmentModel extends ANodeModel2D{
     }
 
     /**
-     * Creates the shape's geometry and material. 
+     * Creates the shape's geometry and material. Call `PreloadAssets()` before constructing one.
      * Model classes must be constructible with no arguments, so every argument has a default.
      * @param length length of branch segment
      * @param width width of branch segment
      * @param level how many above below the trunk this branch is. Currently level does not have any effect on branch segment construction
      * @param color color of the branch
      */
-    constructor(length: number, width: number, level: number = 0, color: Color = Color.FromString("#6b4423")){
+    constructor(length: number = 8, width: number = 2, level: number = 0, color: Color = Color.FromString("#6b4423")){
         super();
         this.length = length
         this.width = width

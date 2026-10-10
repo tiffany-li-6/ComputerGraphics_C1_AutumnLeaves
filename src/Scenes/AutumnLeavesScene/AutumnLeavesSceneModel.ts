@@ -45,7 +45,6 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      */
     initAppState(appState: AppState){
         super.initAppState(appState);
-        LabCatModel.SetAppState(appState);
         TreeModel.SetAppState(appState);
         LeafModel.SetAppState(appState);
         WindModel.SetAppState(appState);

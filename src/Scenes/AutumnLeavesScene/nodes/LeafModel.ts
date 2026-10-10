@@ -4,6 +4,7 @@ import {
     ASerializable,
     AssetManager,
     Color,
+    GetAppState,
     Polygon2D,
     V2,
     Vec2
@@ -11,24 +12,10 @@ import {
 import * as Bezier from "../tools/CubicBezierFunctions";
 
 /**
- * @c1scene AutumnLeavesScene
  * # A Leaf model
  *
  * A leaf whose outline is made of two cubic Bezier curves that both start at the stem (the origin) and end at the
- * tip, `(0, length)`. The left curve bulges out to `-x` and the right curve to `+x`:
- * ```
- *                ^  tip (0, length)
- *             /    )
- *     left   (  |  )   right
- *    curve    \ | /    curve
- *               |  (0, 0)
- *              stem 
- * ```
- * Each curve is sampled into points with `createLeafSpline`, and the sampled points become the vertices of a filled
- * polygon. Every vertex gets a color that is interpolated from `baseColor` (at the stem) to `tipColor` (at the tip),
- * and the RGBA material blends those colors across the triangles of the polygon.
- *
- * The stem is at the origin, so the leaf rotates around the point where it attaches to a branch.
+ * tip, (0, length)
  */
 @ASerializable("LeafModel")
 export class LeafModel extends AMeshModel2D {
