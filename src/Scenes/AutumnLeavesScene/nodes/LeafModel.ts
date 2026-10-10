@@ -21,8 +21,8 @@ import * as Bezier from "../tools/CubicBezierFunctions";
  *             /    )
  *     left   (  |  )   right
  *    curve    \ | /    curve
- *               |
- *              stem (0, 0)
+ *               |  (0, 0)
+ *              stem 
  * ```
  * Each curve is sampled into points with `createLeafSpline`, and the sampled points become the vertices of a filled
  * polygon. Every vertex gets a color that is interpolated from `baseColor` (at the stem) to `tipColor` (at the tip),
@@ -51,6 +51,12 @@ export class LeafModel extends AMeshModel2D {
     baseColor: Color;
     /** Color at the tip. */
     tipColor: Color;
+    /** Age of the leaf, continuous number, increases with time */
+    age: number;
+    /** Stage of the leaf, integer number from 0 to 3, floor of age */
+    stage: number;
+    /** Offset for the stage to add noise/randomness to the color of each leaf */
+    offset: number = 0;
 
     /** The 4 control points of the left curve, stem to tip. Kept so the view can draw them. */
     leftControlPoints: Vec2[] = [];
@@ -67,6 +73,47 @@ export class LeafModel extends AMeshModel2D {
 
     /** Velocity of this leaf */
     velocity: Vec2 = V2(0,0);
+
+    /** Maximum speed for y-axis a leaf can move at*/
+    maxFallSpeedY: number = 6;
+
+    /** How far inside the screen's edges a falling leaf's stem stops, so the leaf body stays visible. */
+    static EdgeMargin = 0.3;
+
+    /**
+     * A falling leaf's stem stays within [-XLimit, XLimit] in x. The scene sets it every frame from the screen's
+     * left and right edges, which widen when the window gets wider.
+     */
+    static XLimit = 9.7;
+
+    /** A falling leaf's stem can't go above this y. The scene sets it every frame from the top of the screen. */
+    static YMax = 9.7;
+
+    /** Table of the corresponding base and tip colors and hold threshold for each stage of a leaf*/
+    static LeafStage = [
+        { base: Color.FromString("#4a7a2a"), tip: Color.FromString("#5f9a35"), hold: 1.0  }, // stage 0: green, green
+        { base: Color.FromString("#5f9a35"), tip: Color.FromString("#e0c341"), hold: 0.99 }, // stage 1: green, yellow
+        { base: Color.FromString("#e0c341"), tip: Color.FromString("#e07b28"), hold: 0.95 }, // stage 2: yellow, orange
+        { base: Color.FromString("#e07b28"), tip: Color.FromString("#7a4a22"), hold: 0.5  }, // stage 3: orange, brown
+    ];
+
+    /** Rate of color change from green to brown per second */
+    static SeasonSpeed: number = 3/60;
+
+    /** Weights for each characteristic of the leaf to determine the offset for age:
+     * Consists of height within the tree, procedural noise based on (x,y) location, and random noise */
+    static HeightWeight = 0.6;
+    static NoiseWeight = 0.3;
+    static RandomWeight = 0.1;
+
+    static MaxSway = 0.3;
+    static SwaySpeed = 2;
+    static SwayReturn = 4;
+
+    /** The angle of rotation assigned to the leaf when initially sprouted */
+    restAngle:number = 0;
+    /** The angle the wind is rotating the leaf at, from the sproutRoation angle */
+    swayAngle:number = 0;
 
     /**
      * Adds this node's controls to the control panel. The scene model calls it from `initAppState`.
@@ -89,12 +136,14 @@ export class LeafModel extends AMeshModel2D {
      * @param baseColor color at the stem
      * @param tipColor color at the tip
      */
-    constructor(length: number = 2, width: number = 1.2, baseColor: Color = Color.FromString("#e8a33d"), tipColor: Color = Color.FromString("#b8321f")){
+    constructor(length: number = 2, width: number = 1.2, baseColor: Color = LeafModel.LeafStage[0].base, tipColor: Color = LeafModel.LeafStage[0].tip){
         super();
         this.length = length;
         this.width = width;
         this.baseColor = baseColor;
         this.tipColor = tipColor;
+        this.age = 0;
+        this.stage = 0;
         this.rebuildGeometry();
 
         // The RGBA material colors each pixel by interpolating the colors of the vertices around it.
@@ -177,23 +226,87 @@ export class LeafModel extends AMeshModel2D {
         if (!this.attached){ //only update if leaf is detached and needs to move
 
             //velocity changes by drag force and gravity
-            const draggedGravity = 2.0; //drag force and gravity combo for y movement
+            const draggedGravity = 3.0; //drag force and gravity combo for y movement
             this.velocity.y -= draggedGravity * dt;
+
+            //cap falling speed so leaves don't keep speeding up on long falls
+            if (this.velocity.y < -this.maxFallSpeedY){
+                this.velocity.y = -this.maxFallSpeedY;
+            }
 
             const dragOnX = 3;
             this.velocity.x -= this.velocity.x * dragOnX * dt;
 
-            //velocity changes by wind effect will be applied through WindModel
+            //velocity changed by wind effect will be applied through WindModel
 
             //update leaf position
-            //setting 'ground' level to be -9.95, leaves cannot fall lower than that
-
             this.prsa.position = this.prsa.position.plus(this.velocity.times(dt));
-            if (this.prsa.position.y < -9.95){
-                this.prsa.position = V2(this.prsa.position.x, -9.95);
+            
+            if (this.prsa.position.y < -9.5){
+                this.prsa.position = V2(this.prsa.position.x, -9.5);
+            }
+
+            // Side walls: stop at the edge and drop the sideways speed, so the leaf falls down along the wall
+            // instead of pushing into it
+            if (Math.abs(this.prsa.position.x) > LeafModel.XLimit){
+                this.prsa.position = V2(Math.sign(this.prsa.position.x) * LeafModel.XLimit, this.prsa.position.y);
+                this.velocity.x = 0;
+            }
+
+            // Ceiling: stop rising, and gravity brings it back down
+            if (this.prsa.position.y > LeafModel.YMax){
+                this.prsa.position = V2(this.prsa.position.x, LeafModel.YMax);
+                this.velocity.y = Math.min(this.velocity.y, 0);
             }
             this.signalTransformUpdate()
         }
+    }
+    
+    /**
+     * Update the color of the leaf for the given season progression `seasonProgress`
+     * @param seasonProgress the current progress of the season from 0, green, to 3, brown.
+     */
+    updateSeason(seasonProgress: number){
+        this.age = Math.min(Math.max(seasonProgress + this.offset, 0), 3);
+        const prevStage = Math.min(Math.floor(this.age), 2);
+        this.stage = prevStage
+
+        // Create interpolation between target color values according to LeafStage
+        const alpha = this.age - prevStage;
+        const a = LeafModel.LeafStage[prevStage];
+        const b = LeafModel.LeafStage[prevStage + 1];
+        this.baseColor = a.base.times(1 - alpha).plus(b.base.times(alpha)) as Color;
+        this.tipColor  = a.tip.times(1 - alpha).plus(b.tip.times(alpha)) as Color;
+        this.rebuildGeometry();
+    }
+
+    /**
+     * Sets the offset from the season progress for each leaf depending on height in the tree,
+     * procedural noise based on location in tree, and a random factor. The higher the leaf is in
+     * the tree, the larger its offset; the higher the offset, the earlier the leaf will start changing colors,
+     * @param height number from 0 (bottom) to 1 (top) representing height relative to the tree
+     * @param noise number from 0 to 1 generated by procedural noise where nearby leaves have a similar number
+     * @param random numbe from 0 to 1, randomly generated with Math.random()
+     */
+    setSeasonOffset(height:number, noise:number, random: number) {
+        this.offset = LeafModel.HeightWeight*height + LeafModel.NoiseWeight*noise + LeafModel.RandomWeight*random;
+    }
+
+    /** Adds `angle` amount to swayAngle by as a result of wind */
+    addSway(angle:number) {
+        this.swayAngle = Math.min(Math.max(this.swayAngle + angle), LeafModel.MaxSway);
+    }
+
+    /** Springs back the sway back to the resting angle `restAngle` according to factor `LeafModel.SwayReturn`
+     * It preserves the sign of the angle (positive or negative sway) since we only change the swayAngle by
+     * a factor between 0 and 1
+     * @param dt 
+    */
+    updateSway(dt: number){
+        if (!this.attached) { return; }
+        this.swayAngle = this.swayAngle - this.swayAngle * Math.min(LeafModel.SwayReturn * dt, 1);
+        this.prsa.rotation = this.restAngle + this.swayAngle;
+        this.signalTransformUpdate();
     }
 
     /**
@@ -213,8 +326,6 @@ export class LeafModel extends AMeshModel2D {
         return this.attached;
     }
 
-
-
     /**
      * Changes velocity of this leaf
      * @param v velocity change vector
@@ -222,4 +333,5 @@ export class LeafModel extends AMeshModel2D {
     addVelocity(v : Vec2){
         this.velocity = this.velocity.clone().plus(v);
     }
+
 }

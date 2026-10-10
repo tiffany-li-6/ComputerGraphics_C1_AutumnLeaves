@@ -41,6 +41,12 @@ export class LabCatModel extends ANodeModel2D{
     /** How far one arrow-key press moves the shape, in world units. */
     static MoveSpeed = 4;
 
+    /**
+     * Lab Cat's edges must stay within [-XLimit, XLimit] in world x. The scene sets it every frame to the screen's
+     * right edge, which grows when the window gets wider. 10 is the edge on a square canvas.
+     */
+    static XLimit = 10;
+
     /** The time of the previous frame, used to compute how much time passed between frames. */
     lastTime?: number;
 
@@ -93,14 +99,17 @@ export class LabCatModel extends ANodeModel2D{
         const dt = (this.lastTime === undefined) ? 0 : t - this.lastTime;
         this.lastTime = t;
 
+        let dx = 0;
         //if holding down left arrow, move left
         if (this.isMovingLeft) {
-            this.moveBy(-1 * LabCatModel.MoveSpeed * dt);
+            dx -= LabCatModel.MoveSpeed * dt;
         }
         //if holding down right arrow, move right
         if (this.isMovingRight) {
-            this.moveBy(LabCatModel.MoveSpeed * dt);
+            dx += LabCatModel.MoveSpeed * dt;
         }
+        // Called every frame, even when dx is 0, so Lab Cat is pulled back on screen if the window shrinks
+        this.moveBy(dx);
     }
 
     /**
@@ -142,10 +151,13 @@ export class LabCatModel extends ANodeModel2D{
     }
 
     /**
-     * Moves the shape's x-axis location by n units
+     * Moves the shape's x-axis location by n units, stopping when an edge reaches `LabCatModel.XLimit`.
      */
     moveBy(n: number){
-        this.moveTo(V2(this.prsa.position.x + n, this.prsa.position.y));
+        // The square geometry is centered, so each edge is half the x scale away from the center.
+        const maxX = LabCatModel.XLimit - this.prsa.scale.x / 2;
+        const x = Math.min(Math.max(this.prsa.position.x + n, -maxX), maxX);
+        this.moveTo(V2(x, this.prsa.position.y));
     }
 
 }

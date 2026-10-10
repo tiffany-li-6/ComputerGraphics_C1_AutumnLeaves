@@ -6,7 +6,7 @@ import {LabCatView} from "./nodes/LabCatView";
 import {LeafBlowerModel} from "./nodes/LeafBlowerModel";
 import {LeafBlowerView} from "./nodes/LeafBlowerView";
 import {PolygonView2D} from "../../anigraph/starter/nodes/polygon2D";
-import {BranchSegmentModel, BranchSegmentView, TreeModel, LeafModel, LeafView, TerrainModel, WindModel, WindView} from "./nodes";
+import {BranchSegmentModel, BranchSegmentView, TreeModel, LeafModel, LeafView, TerrainModel, WindModel, WindView, SkyModel} from "./nodes";
 
 
 /**
@@ -42,7 +42,7 @@ export class AutumnLeavesSceneController extends ASceneController2D{
      */
     initModelViewSpecs(){
         super.initModelViewSpecs();   // keeps specs a parent class adds; camera and group-node specs are built in
-        this.addModelViewSpec(BranchSegmentModel, BranchSegmentView);
+        this.addModelViewSpec(BranchSegmentModel, PolygonView2D);
 
         this.addModelViewSpec(LabCatModel, LabCatView);
         this.addModelViewSpec(LeafBlowerModel, LeafBlowerView);
@@ -53,6 +53,7 @@ export class AutumnLeavesSceneController extends ASceneController2D{
 
         // The engine's generic filled-polygon view: draws the terrain's verts with its material.
         this.addModelViewSpec(TerrainModel, PolygonView2D);
+        this.addModelViewSpec(SkyModel, PolygonView2D);
     }
 
     /**

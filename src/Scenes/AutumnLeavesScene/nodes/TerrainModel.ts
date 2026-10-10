@@ -10,7 +10,6 @@ import {
 import {makeNoise2D} from "fast-simplex-noise";
 
 /**
- * @c1scene AutumnLeavesScene
  * # A Terrain Model
  *
  * Flat ground with a gentle wobble along its top edge. 

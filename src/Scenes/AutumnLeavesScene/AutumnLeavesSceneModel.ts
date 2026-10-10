@@ -1,5 +1,5 @@
 import {ASceneModel2D} from "../../anigraph/starter/Scene2D/ASceneModel2D";
-import {AppState, V2, Vec2} from "../../anigraph";
+import {AppState, Color, V2, Vec2} from "../../anigraph";
 import {BranchSegmentModel} from "./nodes/BranchSegmentModel";
 import {LabCatModel} from "./nodes/LabCatModel";
 import {LeafBlowerModel} from "./nodes/LeafBlowerModel";
@@ -7,6 +7,7 @@ import {TreeModel} from "./nodes/TreeModel";
 import {LeafModel} from "./nodes/LeafModel";
 import {WindModel} from "./nodes";
 import {TerrainModel} from "./nodes/TerrainModel";
+import {SkyModel} from "./nodes/SkyModel";
 
 /**
  * The scene model. It creates the scene's nodes, passes time and input on to them, and is the place for logic that
@@ -28,6 +29,13 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
     wind!: WindModel;
     fallingLeaves: LeafModel[] = [];
     terrain!: TerrainModel;
+    sky!: SkyModel;
+
+    /** The time of the previous frame, used to compute how much time passed between frames. */
+    lastTime?: number;
+
+    /** Clock time when the current season began. Reset whenever the leaves are regrown, so they start green. */
+    seasonStartTime: number = 0;
 
 
     /**
@@ -38,7 +46,6 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
     initAppState(appState: AppState){
         super.initAppState(appState);
         LabCatModel.SetAppState(appState);
-        LeafBlowerModel.SetAppState(appState);
         TreeModel.SetAppState(appState);
         LeafModel.SetAppState(appState);
         WindModel.SetAppState(appState);
@@ -58,6 +65,10 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      * scene model: it throws an error. Under a node, use `parent.addChild(child)`.
      */
     async initScene(){
+        // Init sky: the wind's color (made opaque) at the top, fading to cream at the bottom
+        this.sky = new SkyModel(200, 2 * this.sceneScale, Color.FromString(WindModel.WindColor, 1));
+        this.addNode(this.sky);
+
         // Init terrain
         this.terrain = new TerrainModel();
         this.terrain.prsa.position = V2(0, -this.sceneScale);
@@ -68,6 +79,14 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
         this.tree.prsa.position = V2(0, -this.sceneScale + this.terrain.heightAt(0) + this.terrain.depth-0.5);
         this.addNode(this.tree);
 
+        // When the leaf density slider changes, the tree regrows every leaf (its own subscription to the same key).
+        // Restart the season here so the new leaves start green. The old leaves, fallen ones included, are released
+        // by the regrow, so also forget the fallen ones this scene was updating.
+        this.subscribeToAppState(TreeModel.ControlKeys.TreeLeafDensity, () => {
+            this.seasonStartTime = this.clock.currentTime;
+            this.fallingLeaves = [];
+        });
+
         // Init lab cat
         this.labCat = new LabCatModel();
         this.labCat.prsa.position = V2(-6,-8);
@@ -77,6 +96,9 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
         this.wind.prsa.position = V2(0, 0.5);
         this.leafBlower.addChild(this.wind);
         this.labCat.addChild(this.leafBlower);
+        // A higher zValue draws in front. Every other node is at 0, so Lab Cat (and its leaf blower and wind, which
+        // inherit its depth) is drawn in front of the tree and all leaves, including ones re-added when they fall.
+        this.labCat.zValue = 0.1;
         this.addNode(this.labCat);
     }
 
@@ -85,11 +107,27 @@ export class AutumnLeavesSceneModel extends ASceneModel2D{
      * @param t the current time, in seconds
      */
     timeUpdate(t: number){
+        const dt = (this.lastTime === undefined) ? 0 : t - this.lastTime;
+        this.lastTime = t;
+        // The screen's edges in world units. The camera widens its left/right when the window gets wider
+        // (e.g. full screen), so read them every frame instead of assuming -10 to 10.
+        const camera = this.cameraModel.camera;
+        LabCatModel.XLimit = camera.frustumRight;
+        LeafModel.XLimit = camera.frustumRight - LeafModel.EdgeMargin;
+        LeafModel.YMax = camera.frustumTop - LeafModel.EdgeMargin;
+
         this.labCat.timeUpdate(t);
         this.leafBlower.timeUpdate(t);
         const currLeaves = this.getNodesOfType(LeafModel);
         const leafBlowerRotation = this.leafBlower.prsa.rotation;
         this.wind.timeUpdate(t, currLeaves, leafBlowerRotation); //blows wind at leaves in range
+
+        // Season restarts with every change of tree density
+        const seasonProgress = (t - this.seasonStartTime) * LeafModel.SeasonSpeed;
+        for (const leaf of currLeaves){
+            leaf.updateSeason(seasonProgress); //recolor every leaf
+            leaf.updateSway(dt); //
+        }
 
         for (const leaf of this.fallingLeaves){
             leaf.timeUpdate(t); //updates leaf positions

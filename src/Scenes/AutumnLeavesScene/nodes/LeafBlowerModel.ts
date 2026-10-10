@@ -53,15 +53,6 @@ export class LeafBlowerModel extends ANodeModel2D{
     isRotatingLeft: boolean = false;
     isRotatingRight: boolean = false;
 
-    /**
-     * Adds this node's controls to the control panel. The scene model calls it from `initAppState`.
-     * It is static because `initAppState` runs before any node exists. Controls belong there, before the control
-     * panel is first drawn: controls added later may not fit in the panel.
-     * @param appState
-     */
-    static SetAppState(appState: AppState){
-        // A slider: name, initial value, min, max, step size
-    }
 
     /**
      * Loads the files this node needs, before the scene is built. The scene model calls it from its own

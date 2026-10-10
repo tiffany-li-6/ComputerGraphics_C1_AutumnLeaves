@@ -8,9 +8,13 @@ import {
     GetAppState,
     Polygon2D,
     V2,
-    Vec2, VertexArray2D
+    Vec3,
+    Vec2,
+    SeededRandom,
+    Vec2DH
 } from "../../../anigraph";
 import {LeafModel} from "./LeafModel";
+import {makeNoise2D} from "fast-simplex-noise";
 
 /**
  * # An example node model
@@ -46,13 +50,11 @@ export class WindModel extends ANodeModel2D{
     isDebugOn: boolean = false;
 
     /**
-     * if W/w is currently being pressed -> meaning wind is on
+     * true if W/w is currently being pressed, meaning wind is on
      */
     isWindOn: boolean = false;
 
     windRotation: number = 0;
-
-        //does not change
     shortWidth: number = 0.3;
     angle: number = 0.25; //in PI radians
 
@@ -61,6 +63,19 @@ export class WindModel extends ANodeModel2D{
     longWidth: number = this.shortWidth + (2*this.length * Math.tan(Math.PI * this.angle)); //changes based on length changing
     curveDepth: number = this.longWidth * 0.1; //changes based on longWidth
 
+    noise: (x: number, y: number)=>number;
+    tolerance: number = 0.95;
+    static Seed: number = 400;
+
+    /** The wind cone's color (pale blue-grey, about half transparent). The sky backdrop uses it too, fully opaque. */
+    static WindColor: string = "#c0d9d97d";
+
+    /**
+     * How much the wind fans out sideways: 0 = straight, 1 = follows the cone's sides (45° at the edge),
+     * 2 = 63° at the edge. Multiplies the sideways part of `getSpreadDir`.
+     */
+    static Spread: number = 2;
+    
     /**
      * Adds this node's controls to the control panel. The scene model calls it from `initAppState`.
      * It is static because `initAppState` runs before any node exists. Controls belong there, before the control
@@ -68,18 +83,8 @@ export class WindModel extends ANodeModel2D{
      * @param appState
      */
     static SetAppState(appState: AppState){
-        appState.addSliderIfMissing(WindModel.ControlKeys.LeafBlowingDistance, 1, 0, 5, 0.1);
-        appState.addCheckboxControl(WindModel.ControlKeys.LeafBlowingBorder, true);
-
-    }
-
-    /**
-     * Loads the files this node needs, before the scene is built. The scene model calls it from its own
-     * `PreloadAssets`. This shape needs none; a textured node would load its image here, e.g.
-     * `await AssetManager.loadTexture("./images/LabCatSitsSquareSmall.jpg", "LabCat");`
-     */
-    static async PreloadAssets(){
-    }
+        appState.addSliderIfMissing(WindModel.ControlKeys.LeafBlowingDistance, 1, 0, 4, 0.1);
+        appState.addCheckboxControl(WindModel.ControlKeys.LeafBlowingBorder, true);    }
 
     /**
      * Creates cone-like geometry for the wind coming out of the leaf blower.
@@ -93,7 +98,6 @@ export class WindModel extends ANodeModel2D{
         const polygon = Polygon2D.CreateForRendering(true);
 
         //remember clockwise order
-
         //short side at y=0
         polygon.addVertex(V2(-shortWidth/2, 0), color);
         polygon.addVertex(V2(shortWidth/2, 0), color);
@@ -108,11 +112,7 @@ export class WindModel extends ANodeModel2D{
 
             polygon.addVertex(V2(x, y), color); //adds a vertex for each of numCurveEdges from start to end
         }
-
-
         return polygon;
-
-
     }
 
 
@@ -126,6 +126,7 @@ export class WindModel extends ANodeModel2D{
 
         this.rebuildWindGeometry();
         this.setMaterial(AssetManager.Create2DRGBAMaterial());
+        this.noise = makeNoise2D(new SeededRandom(WindModel.Seed).rand);
 
         this.isDebugOn = GetAppState().getState(WindModel.ControlKeys.LeafBlowingBorder);
         this.visible = false;
@@ -145,20 +146,13 @@ export class WindModel extends ANodeModel2D{
 
     }
     /**
-     * Returns the wind force at `worldPoint` in world coordinates, originating from the end of the leaf
-     * blower. The force is a linear interpolation between 0 and 1, where points furthest from the 
-     * end of the leaf blower yield a value 0.
+     * Maps the wind strength according to distance from nozzle at y=0.
      * @param worldPoint the point, in world coordinates, to obtain the wind force
      */
-    getWindForce(worldPoint:Vec2): number {
-        // Convert from world point to local point for computation
-        const localToWorld = this.getWorldTransform();
-        const worldToLocal = localToWorld.getInverse();
-        const localPoint = worldToLocal.times(worldPoint)
-
-        // Compute distance and TODO FINISH
-        const distance = Math.abs(localPoint.minus(new Vec2(0,0)).L2())
-        return 0;
+    mapWindStrength(y: number): number {
+        const rand = Math.random();
+        const alpha = 1-(y/this.length);
+        return alpha * this.length + rand;
     }
 
     /**
@@ -171,6 +165,7 @@ export class WindModel extends ANodeModel2D{
         //convert point of world coords into local coords of the wind geometry
         //wind has nozzle at y=0, and far end at y = length
         //wind is child of leafBlower, is child of labCat
+
         const pointLocal = this.worldToLocalWind(pointPos);
         const xPos = pointLocal.x;
         const yPos = pointLocal.y;
@@ -215,7 +210,7 @@ export class WindModel extends ANodeModel2D{
      * Build's Model's geometry when called at startup, and whenever a relevant control is changed
      */
     rebuildWindGeometry(){
-        const debugColor= Color.Blue();
+        const debugColor= Color.FromString(WindModel.WindColor);
         const numCurveEdges = 15;
 
         this.setVerts(WindModel.ConeGeometry(this.length, this.shortWidth, this.longWidth, debugColor, numCurveEdges));
@@ -232,10 +227,11 @@ export class WindModel extends ANodeModel2D{
 
         // How much time passed since the last frame (0 on the first frame).
         const dt = (this.lastTime === undefined) ? 0 : t - this.lastTime;
+        this.lastTime=t;
 
         if (this.isWindOn) {
             this.windRotation = windRot;
-            this.checkWindLeafCollisions(t, leaves);
+            this.checkWindLeafCollisions(dt, leaves);
         }
     }
 
@@ -276,19 +272,39 @@ export class WindModel extends ANodeModel2D{
      * Loops through all leaves in scene, and checks if their position is inside wind geometry
      * Changes to world coordinates inside, to compare leafs and wind
      */
-    checkWindLeafCollisions(dt: number, leaves: LeafModel[]) {
+    checkWindLeafCollisions(dt:number, leaves: LeafModel[]) {
         for (const leaf of leaves) {
             //convert leaf to world position to check if it is in wind cone
             const leafWorld = leaf.getWorldTransform().times(V2(0,0));
 
             const leafToBlowerDistance = this.isPointWithinWind(leafWorld); //is -1 if leaf not in wind region
             if ( leafToBlowerDistance >= 0){ //can blow attached and detached leaves
-                //max slider control length is 5 -> larger number is more power
-                const power: number = this.length/10
-                const windVelFromDistanceAway: Vec2 = this.getVelocityDir().times(power);
+                
+                // max slider control length is 4 -> larger number is more power
+                const power: number = this.mapWindStrength(leafToBlowerDistance)
+                const windDirection:Vec2 = this.getSpreadDir(leafWorld);
+                const windVelFromDistanceAway: Vec2 = windDirection.times(power);
+
                 if (leaf.isAttached()){ //if attached, need to see if will detach
-                    //TODO implement threshold/decision for when an attached leaf should fall off
-                    //for now, just saying it will auto fall off if colliding
+                    
+                    // Each leaf has a tolerance for breaking off; if the random number is greater
+                    // than or equal to the tolerance, then it detaches
+                    let stage = leaf.stage 
+                    const rand = Math.random()
+
+                    // Make the leaf sway a little if doesn't reach threshold; don't make it fall off
+                    if (rand < LeafModel.LeafStage[stage].hold) {
+
+                        // Transform center line of leaf
+                        const M = leaf.getWorldTransform();
+                        const centerline = M.times(Vec2DH(0,1)).XY;
+
+                        // Use sign of crossproduct to find direction of torque force acting on leaf from wind
+                        const cross = centerline.x*windDirection.y - centerline.y*windDirection.x;
+                        leaf.addSway(Math.sign(cross) * LeafModel.SwaySpeed*dt);
+
+                        continue;
+                    }
                     leaf.addVelocity(windVelFromDistanceAway);
 
                     //detach leaf from branch/tree models
@@ -315,6 +331,20 @@ export class WindModel extends ANodeModel2D{
                 }
             }
         }
+    }
+    /**
+     * Calculates the angle whcih the collided leaf is at with respect to the cone's virtual tip
+     * @param leafWorld the collided leaf's position in world coordinates
+     * The sideways (x) part of the direction is multiplied by `WindModel.Spread`, so leaves off the center line
+     * are pushed out more (>1) or less (<1) than the cone's own sides. Leaves on the center line still go straight.
+     * @returns the direction of the collided leaf with respect to the angle of the arc
+     */
+    getSpreadDir(leafWorld:Vec2): Vec2 {
+        const local = this.worldToLocalWind(leafWorld);
+        const tipY = -(this.shortWidth/2) / Math.tan(Math.PI * this.angle);
+        const localDir = V2(local.x * WindModel.Spread, local.y - tipY);
+        const world = this.getWorldTransform();
+        return world.times(localDir).minus(world.times(V2(0, 0))).getNormalized();
     }
 
     /**

@@ -7,11 +7,13 @@ import {
     Color,
     GetAppState,
     Polygon2D,
+    SeededRandom,
     V2,
     Vec2
 } from "../../../anigraph";
 import { BranchSegmentModel } from "./BranchSegmentModel";
 import {LeafModel} from "./LeafModel";
+import { makeNoise2D } from "fast-simplex-noise";
 
 /**
  * @c1scene AutumnLeavesScene
@@ -53,14 +55,17 @@ export class TreeModel extends AGroupNodeModel2D {
         /** Total angle between the two outermost sibling branches, in degrees. */
         BranchAngle: "TreeBranchAngle",
         TreeLeafDensity: "TreeLeafDensity",
-        // Add wind movements???
     }
 
     /** The maximum amount of levels for the tree. */
-
     static MaxLevel = 3;
+
     static LengthDecrScale = 0.60;
     static WidthDecrScale = 0.45;
+    static SeasonSeed = 666;
+
+    seasonNoise: (x: number, y: number)=>number;
+    static SeasonNoiseScale = 3
 
     branches:BranchSegmentModel[] = [];
     trunkLength:number;
@@ -83,14 +88,11 @@ export class TreeModel extends AGroupNodeModel2D {
     static SetAppState(appState: AppState){
         // Total angle between the outermost sibling branches: name, initial value, min, max, step size (all in
         // degrees). With 3 children this covers the same fans as the old 30-70 degrees between neighbors.
-        appState.addSliderIfMissing(TreeModel.ControlKeys.BranchAngle, 120, 60, 140, 1);
-        // // A slider: name, initial value, min, max, step size
-        // appState.addSliderIfMissing(TreeModel.ControlKeys.SpinSpeed, 1, -5, 5, 0.01);
-        // // A color picker: name, initial value
-        // appState.addColorControl(TreeModel.ControlKeys.Color, Color.FromString("#3377ff"));
-        // Density of the leaves on the tree
+        appState.addSliderIfMissing(TreeModel.ControlKeys.BranchAngle, 125, 60, 140, 1);
+
         appState.addSliderIfMissing(TreeModel.ControlKeys.TreeLeafDensity, 0.5, 0, 1, 0.25)
     }
+
 
     /**
      * Creates the shape's geometry and material. Call `PreloadAssets()` before constructing one.
@@ -105,6 +107,8 @@ export class TreeModel extends AGroupNodeModel2D {
         // Set numChilds before growing: growBranch reads it, and it would still be undefined otherwise.
         this.numChilds = numChilds;
         this.trunk = this.growBranch(this, 0, trunkLength, trunkWidth);
+
+        this.seasonNoise = makeNoise2D(new SeededRandom(TreeModel.SeasonSeed).rand);
 
         // Re-angle every branch whenever the slider moves. Only rotations change, so the tree isn't rebuilt.
         this.subscribeToAppState(TreeModel.ControlKeys.BranchAngle, (angleDegrees: number)=>{
@@ -121,6 +125,23 @@ export class TreeModel extends AGroupNodeModel2D {
 
         // The RGBA material colors each pixel by interpolating the colors of the vertices around it.
         // this.setMaterial(AssetManager.Create2DRGBAMaterial());
+    }
+
+       /**
+     * The rotation of the `i`th of `n` sibling branches, fanned out symmetrically around their parent's direction.
+     * The outermost two siblings are `totalDegrees` apart, and the rest are evenly spaced between them; with 3
+     * children at 120 degrees this gives -60, 0 and +60. A single child points straight along its parent.
+     * @param i which sibling, from 0 to n-1
+     * @param n how many siblings there are
+     * @param totalDegrees angle between the two outermost siblings, in degrees
+     * @returns the rotation relative to the parent segment, in radians
+     */
+    static SpreadRotation(i: number, n: number, totalDegrees: number): number {
+        // With one child there is no spread (and n-1 would divide by zero).
+        if (n <= 1) { return 0; }
+        // i/(n-1) runs from 0 to 1 across the siblings; subtracting 0.5 centers it on 0, e.g. 0,1,2 becomes
+        // -0.5,0,+0.5. Scaling by the total puts the outermost siblings at -total/2 and +total/2.
+        return (i / (n-1) - 0.5) * totalDegrees * Math.PI/180;
     }
 
     /**
@@ -146,23 +167,6 @@ export class TreeModel extends AGroupNodeModel2D {
     }
 
     /**
-     * The rotation of the `i`th of `n` sibling branches, fanned out symmetrically around their parent's direction.
-     * The outermost two siblings are `totalDegrees` apart, and the rest are evenly spaced between them; with 3
-     * children at 120 degrees this gives -60, 0 and +60. A single child points straight along its parent.
-     * @param i which sibling, from 0 to n-1
-     * @param n how many siblings there are
-     * @param totalDegrees angle between the two outermost siblings, in degrees
-     * @returns the rotation relative to the parent segment, in radians
-     */
-    static SpreadRotation(i: number, n: number, totalDegrees: number): number {
-        // With one child there is no spread (and n-1 would divide by zero).
-        if (n <= 1) { return 0; }
-        // i/(n-1) runs from 0 to 1 across the siblings; subtracting 0.5 centers it on 0, e.g. 0,1,2 becomes
-        // -0.5,0,+0.5. Scaling by the total puts the outermost siblings at -total/2 and +total/2.
-        return (i / (n-1) - 0.5) * totalDegrees * Math.PI/180;
-    }
-
-    /**
      * Re-angles every branch to the given spread, keeping each one attached at its parent's tip.
      * @param angleDegrees total angle between the two outermost sibling branches, in degrees
      */
@@ -179,6 +183,31 @@ export class TreeModel extends AGroupNodeModel2D {
         }
     }
 
+    assignSeasonLeafOffsets() {
+        // Set the offset for each leaf
+        const leaves = this.getLeaves();
+        if (leaves.length == 0) { return; }
+        const rand = Math.random();
+        
+        // Get transformation to Tree coords
+        const toTreeTransform = this.getWorldTransform().getInverse();
+        // Leaf in Tree Coords = Leaf in Leaf Coords => Leaf in World Coords => Leaf in Tree Coords!
+        const positions = leaves.map(leaf => toTreeTransform.times(leaf.getWorldTransform().times(V2(0,0))));
+
+        const minY = Math.min(...positions.map(p => p.y));
+        const maxY = Math.max(...positions.map(p => p.y));
+        const heightRange = (maxY - minY) || 1;
+
+        leaves.forEach((leaf, i) => {
+            const p = positions[i];
+            const height = (p.y - minY) / heightRange; // alpha
+
+            const s = TreeModel.SeasonNoiseScale;
+            const noise = (this.seasonNoise(p.x * s, p.y * s) + 1) / 2; 
+            leaf.setSeasonOffset(height, noise, rand);
+        }); 
+    }
+
     /**
      * Re-grows leaves on each branch by calling the sproutLeaves function on each branch segment of the tree
      * @param density density of the tree's leaves ranging from 0 (least dense) to 1 (most dense)
@@ -186,8 +215,9 @@ export class TreeModel extends AGroupNodeModel2D {
     regrowLeaves(density:number) {
         for (const branch of this.branches) {
             branch.clearLeaves()
-            branch.sproutLeaves(density)
+            branch.sproutLeaves(density)            
         }
+        this.assignSeasonLeafOffsets()
     }
 
     /**

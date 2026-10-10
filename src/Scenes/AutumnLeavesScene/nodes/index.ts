@@ -10,4 +10,5 @@ export * from "./LeafBlowerView";
 export * from "./WindModel";
 export * from "./WindView";
 export * from "./TerrainModel";
+export * from "./SkyModel";
 

@@ -20,7 +20,13 @@ import { LeafModel } from "./LeafModel";
  * - the constructor: creates this node's geometry and material (and its children, if it had any).
  * - `timeUpdate`: its per-frame behavior.
  * - `onKeyDown` and `moveTo`: how it responds to input. The controller calls these (through the scene model); the
- *   node decides what they mean.
+ *   node decides what they mean
+ * - `RectangleGeometry` creates a rectangle polygon
+ * - `Root` returns the root of the branch
+ * - `Tip` returns the tip of the branch
+ * - `clearLeaves` releases all leaves from the branch
+ * - `sproutLeaves` sprouts a given amount of leaves on that branch given by the `density` parameter
+ * - `placeLeaf` calculates the location of a leaf given an alpha value and places it at an angle of MATH.PI/4
  *
  * Every node model class needs `@ASerializable` with a label that is unique across the whole app.
  *
@@ -32,11 +38,15 @@ import { LeafModel } from "./LeafModel";
 @ASerializable("BranchSegmentModel")
 export class BranchSegmentModel extends ANodeModel2D{
 
-    /** Document this. TODO */
+    /** Length of branch */
     length: number;
+    /** Width of branch */
     width: number;
+    /** Level of the branch (0 is trunk) */
     level: number;
+    /** List of all the leaves on this brnach */
     leafList: LeafModel[] = []
+    /** Maxmimum number of leaves possible on a branch */
     static MaxLeavesPerBranch: number = 8;
 
     /** The time of the previous frame, used to compute how much time passed between frames. */
@@ -87,23 +97,9 @@ export class BranchSegmentModel extends ANodeModel2D{
         this.setMaterial(AssetManager.Create2DRGBAMaterial());
     }
 
-    moveTo(position: Vec2){
-        this.prsa.position = position.clone();
-        this.signalTransformUpdate();
-    }
-
-    /**
-     * Puts this segment's joint at `position`, given in the parent's coordinates.
-     * @param position
-     */
-    attachAt(position: Vec2){
-        this.prsa.position = position.clone();
-        this.signalTransformUpdate();
-    }
-
     /**
      * Sets the angle of this segement relative to its parent.
-     * @param angle in radians; 0 points the same way as the parent
+     * @param angle in radians
      */
     setAngle(angle: number){
         this.prsa.rotation = angle;
@@ -123,6 +119,7 @@ export class BranchSegmentModel extends ANodeModel2D{
     /**
      * Sprouts leaves on branch according to `density` parameter, evenly spaced along the branch
      * segement
+     * @param density a number from 0 to 1 that represents how dense the branch should be
      */
     sproutLeaves(density: number) {
         const numLeaves = Math.floor(BranchSegmentModel.MaxLeavesPerBranch * density);
@@ -133,6 +130,7 @@ export class BranchSegmentModel extends ANodeModel2D{
             this.leafList.push(leaf);
             const alpha = 1- Math.random();
             this.placeLeaf(leaf, alpha, (i%2 == 0) ? -1 : 1);
+            
         }
         if (density != 0) {
             const leaf = new LeafModel(0.6,0.35);
@@ -140,21 +138,20 @@ export class BranchSegmentModel extends ANodeModel2D{
             this.leafList.push(leaf)
             this.placeLeaf(leaf, 1, 0)
         }
-        
     }
 
     /**
-     * Calculates the position of leaf relative to branch segement's coordinates given alpha along the
-     * branch segment, rotation according to a FIX HERE fixed angle (but could be random) and then
-     * signals the transofmration update
-     * @param leaf the leaf to be placed
-     * @param alpha from 0 to 1, representing progress along the branch segement
-     * @param side either -1 or 1 depending on left or right
-     * @param tilt 
+     * Calculates the position of leaf in the branch segement's coords given an alpha along the
+     * branch segment; the rotation is at a fixed angle (currently MATH.PI/4)
+     * @param leaf 
+     * @param alpha represents progress along the branch from 0 to 1
+     * @param side left or right, -1 or 1 resepctively
+     * @param tilt fixed at Math.PI/4 rn
      */
     placeLeaf(leaf:LeafModel, alpha:number, side:number, tilt:number=Math.PI/4) {
         leaf.prsa.position = V2(side * this.width / 2, alpha * this.length);
         leaf.prsa.rotation = -side * tilt;
+        leaf.restAngle = leaf.prsa.rotation
         leaf.signalTransformUpdate();
     }
 }

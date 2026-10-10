@@ -38,8 +38,6 @@ export class LineSegment{
      * @returns {boolean}
      */
     isPointOnExtendedLine(point2D:Vec2):boolean{
-        // TODO: Replace with your code
-        // throw new Error("Not Implemented")
         return Precision.PEQ(this.lineCoefficientVector.dot(Point2DH(point2D)), 0);
     }
 
@@ -71,8 +69,6 @@ export class LineSegment{
      * @returns {undefined | Vec2}
      */
     intersect(other:LineSegment):Vec2|undefined{
-        // TODO: Replace with your code
-        // throw new Error("Not Implemented")
         let lA = this.lineCoefficientVector;
         let lB = other.lineCoefficientVector;
         let ph = lA.cross(lB);
